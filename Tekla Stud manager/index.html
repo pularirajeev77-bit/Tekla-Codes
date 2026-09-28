@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Stud Manager - Tekla Structures Ready</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1400px; margin: 20px auto; padding: 0 20px; }
+        .input-area { background: #f0f0f0; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .input-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; align-items: flex-start; }
+        .input-group { display: flex; align-items: flex-start; gap: 5px; }
+        .input-group label { font-weight: bold; min-width: 140px; padding-top: 6px; }
+        .input-group input { width: 90px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+        .input-group-small label { min-width: 90px; }
+        .input-group-small input { width: 70px; }
+        button { background: #007bff; color: white; border: none; padding: 8px 16px; margin: 5px; cursor: pointer; border-radius: 4px; font-size: 14px; }
+        button:hover { opacity: 0.8; }
+        .delete-btn  { background: #dc3545; }
+        .edit-btn    { background: #ffc107; color: black; }
+        .export-btn  { background: #28a745; font-size: 15px; padding: 10px 20px; }
+        .tekla-export{ background: #6f42c1; }
+        .clear-btn   { background: #6c757d; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 7px 8px; text-align: left; font-size: 12px; }
+        th { background: #e07b00; color: white; position: sticky; top: 0; z-index: 1; white-space: nowrap; }
+        td { white-space: nowrap; }
+        .status { margin: 10px 0; padding: 10px; background: #e9ecef; border-radius: 4px; display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
+        .formula-badge { background: #28a745; color: white; padding: 2px 7px; border-radius: 12px; font-size: 11px; margin-left: 4px; white-space: nowrap; }
+        .stud-count { font-size: 20px; font-weight: bold; color: #e07b00; }
+        .table-container { max-height: 420px; overflow-y: auto; border: 2px solid #e07b00; border-radius: 4px; }
+        .checkbox-group { display: flex; align-items: center; gap: 15px; margin-top: 10px; flex-wrap: wrap; }
+        .export-group { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+        .info-box  { background: #fff4e6; border-left: 4px solid #e07b00; padding: 10px; margin: 10px 0; font-size: 12px; }
+        .warn-box  { background: #fff8e1; border-left: 4px solid #ffc107; padding: 10px; margin: 10px 0; font-size: 12px; }
+        .sample-box{ background: #f8f9fa; border: 1px solid #dee2e6; padding: 10px; margin: 10px 0; font-family: monospace; font-size: 11px; overflow-x: auto; }
+        select { padding: 6px; border-radius: 4px; border: 1px solid #ccc; }
+        .grade-custom { display: flex; gap: 5px; align-items: center; }
+        .tooltip { cursor: help; border-bottom: 1px dotted #999; }
+        .legend { background: white; padding: 12px; border-radius: 5px; margin-bottom: 10px; border: 1px solid #ddd; }
+        .legend h4 { margin: 0 0 8px 0; font-size: 13px; color: #333; }
+        .legend table { margin-top: 8px; font-size: 11px; }
+        .legend th { background: #e07b00; font-size: 11px; padding: 4px 8px; }
+        .legend td { padding: 3px 8px; white-space: normal; }
+        .legend tr:nth-child(even) td { background: #f8f9fa; }
+        .legend tr.ss td { background: #e8f5e9; }
+        .legend tr.sm td { background: #fff3e0; }
+        .legend tr.sl td { background: #e3f2fd; }
+        h1 { color: #333; }
+
+        /* ── Validation ── */
+        .field-valid   { border: 2px solid #28a745 !important; background: #f6fff8 !important; }
+        .field-invalid { border: 2px solid #dc3545 !important; background: #fff5f5 !important; }
+        .field-warn    { border: 2px solid #ffc107 !important; background: #fffdf0 !important; }
+        .field-dup     { border: 2px solid #fd7e14 !important; background: #fff4ec !important; }
+        .hint { font-size: 10px; margin-top: 2px; display: block; min-height: 13px; }
+        .hint-ok    { color: #28a745; }
+        .hint-error { color: #dc3545; }
+        .hint-warn  { color: #e67e00; }
+        .hint-dup   { color: #c94a00; font-weight: bold; }
+        .input-wrap { display: flex; flex-direction: column; }
+        .valid-icon { font-size: 14px; padding-top: 4px; }
+
+        /* ── Duplicate banner ── */
+        .dup-banner {
+            display: none; background: #fff4ec;
+            border: 2px solid #fd7e14; border-radius: 6px;
+            padding: 10px 14px; margin: 8px 0; font-size: 13px; color: #7c3700;
+        }
+        .dup-banner strong { color: #c94a00; }
+        .dup-banner .dup-actions { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+        /* ── Toast notification ── */
+        #toast {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(80px);
+            background: #198754; color: white; padding: 12px 28px;
+            border-radius: 8px; font-size: 14px; font-weight: bold;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+            transition: transform 0.35s ease, opacity 0.35s ease;
+            opacity: 0; z-index: 9999; pointer-events: none; white-space: nowrap;
+        }
+        #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        #toast.toast-update { background: #0d6efd; }
+
+        /* ── Row highlights ── */
+        .editing-row   { background: #fff3cd !important; }
+        .duplicate-row { background: #fff0e6 !important; outline: 2px solid #fd7e14; }
+        .saved-flash   { animation: flashGreen 1.8s ease forwards; }
+        @keyframes flashGreen {
+            0%   { background: #d1e7dd; }
+            30%  { background: #a3cfbb; }
+            100% { background: transparent; }
+        }
+        .no-studs-row td { text-align: center; color: #888; font-style: italic; padding: 20px; }
+
+        /* ── Standard tags ── */
+        .std-tag  { display:inline-block; padding:1px 5px; border-radius:3px; font-size:10px; margin-left:4px; }
+        .std-nelson { background:#ffe0b2; color:#7c3700; }
+        .std-iso  { background:#d1e7dd; color:#0a3622; }
+        .std-en   { background:#fff3cd; color:#664d03; }
+        .std-astm { background:#e2d9f3; color:#3d0a91; }
+        .std-other{ background:#e2e3e5; color:#383d41; }
+    </style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<h1>🔩 Stud Manager — Tekla Structures Ready</h1>
+<p>✅ Nelson / ISO / EN / ASTM Headed Studs | ✏️ Edit Mode | 📤 Tekla JSON Export | Type 301</p>
+
+<div class="legend">
+    <h4>📖 Metric Headed Stud Connector Reference Table — EN ISO 13918 / Nelson</h4>
+    <table>
+        <thead>
+            <tr>
+                <th>Shank Ø (mm)</th>
+                <th>p1 — Head Height (mm)</th>
+                <th>p5 — Head Diameter (mm)</th>
+                <th>p2 / p3 / p4 / p6</th>
+                <th>Type (Tekla)</th>
+                <th>Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="ss"><td>13</td><td>8</td><td>21.0</td><td>0 / 0 / 0 / 0</td><td>301</td><td>Small shear stud</td></tr>
+            <tr class="ss"><td>16</td><td>10</td><td>26.0</td><td>0 / 0 / 0 / 0</td><td>301</td><td>Light composite</td></tr>
+            <tr class="sm"><td>19</td><td>10</td><td>30.0</td><td>0 / 0 / 0 / 0</td><td>301</td><td>Standard composite</td></tr>
+            <tr class="sm"><td>20</td><td>10</td><td>33.0</td><td>0 / 0 / 0 / 0</td><td>301</td><td>Standard metric ✅ ref</td></tr>
+            <tr class="sm"><td>22</td><td>10</td><td>35.0</td><td>0 / 0 / 0 / 0</td><td>301</td><td>Heavy composite</td></tr>
+            <tr class="sl"><td>25</td><td>10</td><td>40.0</td><td>0 / 0 / 0 / 0</td><td>301</td><td>Extra heavy</td></tr>
+        </tbody>
+    </table>
+    <p style="margin-top:6px;font-size:11px;">
+        🟢 Small (≤16mm) | 🟠 Medium (19–22mm) | 🔵 Large (≥25mm) |
+        <strong>p5</strong> = head flange diameter | <strong>p1</strong> = head height |
+        <strong>Weight</strong> = (shank + 0.7×head) × 7.85 g/cm³ — verified: 20×40 → 146g ✅
+    </p>
+    <p style="font-size:11px;margin-top:4px;">
+        <strong>Accepted Standards:</strong>
+        <span class="std-tag std-nelson">NELSON</span>
+        <span class="std-tag std-iso">ISO 13918</span>
+        <span class="std-tag std-en">EN ISO 13918</span>
+        <span class="std-tag std-astm">AWS D1.1</span>
+        <span class="std-tag std-other">+ any custom</span>
+    </p>
+</div>
+
+<div class="info-box">
+    💡 <strong>Quick Guide:</strong> Enter Diameter + Length → head dimensions auto-fill from Nelson stud table.<br>
+    📌 <strong>Tekla Mapping:</strong> p1 (head height), p5 (head diam), p2/p3/p4/p6 = 0. Type is always <strong>301</strong>.<br>
+    🔁 <strong>Duplicate check</strong> — same Diameter + Standard + Length warns before saving.<br>
+    💾 <strong>Save Changes</strong> — edited row flashes green and table scrolls to it so you can confirm.
+</div>
+
+<div class="warn-box">
+    ⚠️ <strong>p5</strong> = head flange diameter. Tekla uses this to draw the stud head. All sizes are metric (EN ISO 13918).
+    13mm: head=<strong>21mm</strong> | 19mm: head=<strong>30mm</strong> | 20mm: head=<strong>33mm</strong> | 25mm: head=<strong>40mm</strong>
+</div>
+
+<div class="dup-banner" id="dupBanner">
+    <strong>⚠️ Duplicate Detected!</strong>
+    <span id="dupMessage"></span>
+    <div class="dup-actions">
+        <button onclick="forceSaveDuplicate()" style="background:#fd7e14;">➕ Add Anyway</button>
+        <button onclick="jumpToExisting()"     style="background:#6c757d;">🔍 Jump to Existing</button>
+        <button onclick="dismissDupBanner()"   style="background:#aaa;color:#333;">✖ Dismiss</button>
+    </div>
+</div>
+
+<div class="input-area">
+    <h3 id="formTitle">➕ Add New Stud</h3>
+
+    <div class="input-row">
+        <div class="input-group">
+            <label class="tooltip" title="Shank diameter in mm — e.g. 13, 19, 22.22">📏 Diameter (mm):</label>
+            <div class="input-wrap">
+                <input type="number" id="diameter" step="0.01" min="1" max="300"
+                       oninput="validateDiameter(); checkDuplicate();"
+                       onchange="calculateStandardValues(); checkDuplicate();">
+                <span class="hint" id="hint-diameter"></span>
+            </div>
+            <span class="valid-icon" id="icon-diameter"></span>
+        </div>
+
+        <div class="input-group">
+            <label class="tooltip" title="NELSON, ISO 13918, EN ISO 13918, AWS D1.1 etc.">📄 Standard:</label>
+            <div class="input-wrap">
+                <input type="text" id="din" value="NELSON" style="width:130px;text-transform:uppercase"
+                       oninput="validateStandard(); checkDuplicate();"
+                       onchange="calculateStandardValues(); checkDuplicate();"
+                       maxlength="20">
+                <span class="hint" id="hint-din"></span>
+            </div>
+            <span class="valid-icon" id="icon-din"></span>
+        </div>
+
+        <div class="input-group">
+            <label class="tooltip" title="Total stud length in mm">📐 Length (mm):</label>
+            <div class="input-wrap">
+                <input type="number" id="length" step="1" min="1" max="3000"
+                       oninput="validateLength(); checkDuplicate();"
+                       onchange="calculateStandardValues(); checkDuplicate();">
+                <span class="hint" id="hint-length"></span>
+            </div>
+            <span class="valid-icon" id="icon-length"></span>
+        </div>
+    </div>
+
+    <div class="input-row">
+        <div class="input-group">
+            <label class="tooltip" title="Head height (Tekla: p1)">📏 p1 — Head Height:</label>
+            <input type="number" id="p1" step="0.1" readonly style="background:#e8e8e8">
+            <span class="formula-badge">Stud Table</span>
+        </div>
+        <div class="input-group">
+            <label class="tooltip" title="Head flange diameter (Tekla: p5 / top diam)">🔘 p5 — Head Diameter:</label>
+            <input type="number" id="p5" step="0.01" readonly style="background:#e8e8e8">
+            <span class="formula-badge">Stud Table</span>
+        </div>
+        <div class="input-group">
+            <label class="tooltip" title="Weight grams — (shank + head) × 7.85 g/cm³">⚖️ Weight (grams):</label>
+            <input type="number" id="weight" step="0.01" readonly style="background:#e8e8e8">
+            <span class="formula-badge">Auto</span>
+        </div>
+    </div>
+
+    <div class="input-row">
+        <div class="input-group-small">
+            <label class="tooltip" title="Tekla p2 — always 0 for studs">📐 p2:</label>
+            <input type="number" id="p2" value="0" step="0.01" readonly style="background:#e8e8e8">
+        </div>
+        <div class="input-group-small">
+            <label class="tooltip" title="Tekla p3 — always 0 for studs">📦 p3:</label>
+            <input type="number" id="p3" value="0" step="0.01" readonly style="background:#e8e8e8">
+        </div>
+        <div class="input-group-small">
+            <label class="tooltip" title="Tekla p4 — always 0 for studs (no wrench)">🔧 p4:</label>
+            <input type="number" id="p4" value="0" step="0.01" readonly style="background:#e8e8e8">
+        </div>
+        <div class="input-group-small">
+            <label class="tooltip" title="Tekla p6 — always 0 for studs">➕ p6:</label>
+            <input type="number" id="p6" value="0" step="0.01" readonly style="background:#e8e8e8">
+        </div>
+        <div style="padding-top:6px;font-size:12px;color:#666;align-self:center;">
+            ℹ️ p2/p3/p4/p6 are always <strong>0</strong> for stud connectors (type 301)
+        </div>
+    </div>
+
+    <div class="input-row">
+        <div class="input-group">
+            <label class="tooltip" title="Material strength grade">🏭 Grade:</label>
+            <select id="grade" onchange="handleGradeChange()">
+                <option value="S235">S235 — Standard</option>
+                <option value="S355" selected>S355 — High strength</option>
+                <option value="Grade 50">Grade 50 (ASTM)</option>
+                <option value="Grade 60">Grade 60 (ASTM)</option>
+                <option value="SS304">Stainless 304</option>
+                <option value="SS316">Stainless 316</option>
+                <option value="custom">✏️ Custom...</option>
+            </select>
+        </div>
+        <div class="grade-custom" id="customGradeDiv" style="display:none;">
+            <label>Custom:</label>
+            <input type="text" id="customGrade" placeholder="e.g. B7, HV"
+                   style="width:100px;text-transform:uppercase"
+                   oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div class="input-group">
+            <label class="tooltip" title="Stud name for Tekla catalog">📝 Name:</label>
+            <input type="text" id="customName" placeholder="Auto-generated" style="width:200px">
+            <span class="formula-badge" id="nameStatus">Auto</span>
+        </div>
+    </div>
+
+    <div class="checkbox-group">
+        <label>
+            <input type="checkbox" id="autoName" checked onchange="toggleAutoName()">
+            Auto-generate Name &nbsp;<code style="font-size:11px;background:#ddd;padding:1px 4px;border-radius:3px;">{STD} {dia}*{len}</code>
+        </label>
+        <label>
+            <input type="checkbox" id="manualMode" onchange="toggleManualMode()">
+            ✏️ Manual Override (unlock p1 / p5 / weight fields)
+        </label>
+    </div>
+
+    <div style="margin-top:15px;">
+        <button onclick="addStud()"    id="addBtn">➕ Add Stud</button>
+        <button onclick="cancelEdit()" id="cancelBtn" class="clear-btn" style="display:none;">✖ Cancel Edit</button>
+        <button onclick="clearInputs()" class="clear-btn">🗑️ Clear Form</button>
+    </div>
+</div>
+
+<div class="status">
+    <span>📊 Total Studs:</span>
+    <span id="studCount" class="stud-count">0</span>
+    <button onclick="clearAll()" class="clear-btn">🗑️ Clear All</button>
+</div>
+
+<div class="table-container" id="tableContainer">
+    <table id="studTable">
+        <thead>
+            <tr>
+                <th>#</th><th>Diameter</th><th>Standard</th><th>Length</th>
+                <th>Name</th><th>Grade</th>
+                <th>p1 Head H</th><th>p5 Head Ø</th>
+                <th>p2</th><th>p3</th><th>p4</th><th>p6</th>
+                <th>Type</th><th>Weight (g)</th><th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="studTableBody">
+            <tr class="no-studs-row">
+                <td colspan="15">No studs added yet — fill the form above and click ➕ Add Stud</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="export-group">
+    <button class="export-btn" onclick="exportJSON('json')">📤 Export JSON (.json)</button>
+    <button class="export-btn tekla-export" onclick="exportJSON('bolts')">🏗️ Export Tekla (.bolts)</button>
+    <button class="export-btn" onclick="exportCSV()">📊 Export CSV (Excel)</button>
+</div>
+
+<div class="sample-box">
+    <strong>📋 Reference — 20mm × 40mm (verified output):</strong><br>
+    { "diameter":20, "din":"UNDEF_STUD", "length":40, "name":"UNDEFINED_STUD20*40",
+      "p1":10, "p2":0, "p3":0, "p4":0, "p5":33, "p6":0, "type":301, "weight":146 }<br><br>
+    <strong>📋 Sample — NELSON 19 × 100:</strong><br>
+    { "diameter":19, "din":"NELSON", "length":100, "name":"NELSON 19*100",
+      "p1":10, "p2":0, "p3":0, "p4":0, "p5":30, "p6":0, "type":301, "weight":216 }
+</div>
+
+<script>
+    let studs = [];
+    let editIndex        = null;
+    let pendingDupStud   = null;
+    let dupExistingIndex = null;
+
+    // Metric sizes only — EN ISO 13918 / Nelson
+    const VALID_DIAMETERS = [13, 16, 19, 20, 22, 25];
+
+    // ── HEAD DIMENSION TABLES (metric, verified: d=20 → p1=10, p5=33) ────────
+    const HEAD_HEIGHT = { 13:8, 16:10, 19:10, 20:10, 22:10, 25:10 };
+    const HEAD_DIAM   = { 13:21.0, 16:26.0, 19:30.0, 20:33.0, 22:35.0, 25:40.0 };
+
+    function getHeadHeight(d) {
+        if (HEAD_HEIGHT[d] !== undefined) return HEAD_HEIGHT[d];
+        return parseFloat((d * 0.45).toFixed(1));
+    }
+
+    function getHeadDiam(d) {
+        if (HEAD_DIAM[d] !== undefined) return HEAD_DIAM[d];
+        return parseFloat((d * 1.65).toFixed(1));
+    }
+
+    // Weight formula verified against reference: d=20, L=40, p1=10, p5=33 → 146g
+    // Stud head is dome/frustum shaped — approximated as 0.7 × full cylinder volume
+    function getWeight(d, L, headH, headD) {
+        const dc  = d     / 10;
+        const Lc  = L     / 10;
+        const hHc = headH / 10;
+        const hDc = headD / 10;
+        const shank = Math.PI * Math.pow(dc  / 2, 2) * Lc;
+        const head  = Math.PI * Math.pow(hDc / 2, 2) * hHc * 0.7;
+        return parseFloat(((shank + head) * 7.85).toFixed(0));
+    }
+
+    // ── TOAST ─────────────────────────────────────────────────────────────────
+    let toastTimer;
+    function showToast(msg, isUpdate) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className   = 'show' + (isUpdate ? ' toast-update' : '');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => { t.className = ''; }, 3000);
+    }
+
+    // ── FLASH ROW ─────────────────────────────────────────────────────────────
+    function flashRow(index) {
+        setTimeout(() => {
+            const rows = document.querySelectorAll('#studTableBody tr');
+            if (!rows[index]) return;
+            const row = rows[index];
+            row.classList.remove('saved-flash');
+            void row.offsetWidth;
+            row.classList.add('saved-flash');
+            const container = document.getElementById('tableContainer');
+            container.scrollTo({ top: row.offsetTop - 40, behavior: 'smooth' });
+        }, 50);
+    }
+
+    // ── DUPLICATE CHECK ───────────────────────────────────────────────────────
+    function findDuplicate(diameter, std, length, skipIndex) {
+        return studs.findIndex((s, i) => {
+            if (i === skipIndex) return false;
+            return s.diameter === diameter &&
+                   s.din.toUpperCase() === std.toUpperCase() &&
+                   s.length === length;
+        });
+    }
+
+    function checkDuplicate() {
+        const d   = parseFloat(document.getElementById('diameter').value);
+        const std = document.getElementById('din').value.trim();
+        const L   = parseFloat(document.getElementById('length').value);
+        if (isNaN(d) || isNaN(L) || !std) { dismissDupBanner(); return; }
+
+        const idx = findDuplicate(d, std, L, editIndex);
+        if (idx !== -1) {
+            ['diameter','din','length'].forEach(id => {
+                const el = document.getElementById(id);
+                el.classList.remove('field-valid','field-invalid','field-warn');
+                el.classList.add('field-dup');
+            });
+            document.getElementById('hint-diameter').textContent = '⚠ Duplicate!';
+            document.getElementById('hint-diameter').className   = 'hint hint-dup';
+            document.getElementById('hint-din').textContent      = '⚠ Duplicate!';
+            document.getElementById('hint-din').className        = 'hint hint-dup';
+            document.getElementById('hint-length').textContent   = '⚠ Duplicate!';
+            document.getElementById('hint-length').className     = 'hint hint-dup';
+        } else {
+            dismissDupBanner();
+            validateDiameter(); validateStandard(); validateLength();
+        }
+    }
+
+    function showDupBanner(d, std, L, stud, existIdx) {
+        pendingDupStud   = stud;
+        dupExistingIndex = existIdx;
+        const ex = studs[existIdx];
+        document.getElementById('dupMessage').innerHTML =
+            ` A stud <strong>${std} ${d} × ${L}</strong> already exists at row
+              <strong>#${existIdx+1}</strong> (${ex.name}, Grade ${ex.grade}). What would you like to do?`;
+        document.getElementById('dupBanner').style.display = 'block';
+        document.getElementById('dupBanner').scrollIntoView({ behavior:'smooth', block:'center' });
+        document.querySelectorAll('#studTableBody tr').forEach((r,i) =>
+            r.classList.toggle('duplicate-row', i === existIdx));
+    }
+
+    function forceSaveDuplicate() {
+        if (!pendingDupStud) return;
+        let savedIndex;
+        if (editIndex !== null) {
+            savedIndex = editIndex;
+            studs[editIndex] = pendingDupStud;
+            editIndex = null;
+        } else {
+            studs.push(pendingDupStud);
+            savedIndex = studs.length - 1;
+        }
+        pendingDupStud = null; dupExistingIndex = null;
+        renderTable();
+        clearInputs();
+        dismissDupBanner();
+        flashRow(savedIndex);
+        showToast(`✅ Saved (duplicate allowed) — ${studs[savedIndex].name}`, true);
+    }
+
+    function jumpToExisting() {
+        if (dupExistingIndex === null) return;
+        const rows = document.querySelectorAll('#studTableBody tr');
+        if (rows[dupExistingIndex]) {
+            rows[dupExistingIndex].scrollIntoView({ behavior:'smooth', block:'center' });
+            rows[dupExistingIndex].style.outline = '3px solid #fd7e14';
+            setTimeout(() => rows[dupExistingIndex].style.outline = '', 2500);
+        }
+        dismissDupBanner();
+    }
+
+    function dismissDupBanner() {
+        document.getElementById('dupBanner').style.display = 'none';
+        pendingDupStud = null; dupExistingIndex = null;
+        document.querySelectorAll('#studTableBody tr').forEach(r => r.classList.remove('duplicate-row'));
+        ['diameter','din','length'].forEach(id => document.getElementById(id).classList.remove('field-dup'));
+    }
+
+    // ── VALIDATION ────────────────────────────────────────────────────────────
+    function setField(inputId, hintId, iconId, state, msg) {
+        const el   = document.getElementById(inputId);
+        const hint = document.getElementById(hintId);
+        const icon = iconId ? document.getElementById(iconId) : null;
+        el.classList.remove('field-valid','field-invalid','field-warn','field-dup');
+        if (state==='ok')    { el.classList.add('field-valid');   if(icon) icon.textContent='✅'; }
+        if (state==='error') { el.classList.add('field-invalid'); if(icon) icon.textContent='❌'; }
+        if (state==='warn')  { el.classList.add('field-warn');    if(icon) icon.textContent='⚠️'; }
+        if (state==='')      { if(icon) icon.textContent=''; }
+        if (hint) { hint.textContent=msg; hint.className='hint'+(state?' hint-'+state:''); }
+    }
+
+    function validateDiameter() {
+        const raw = document.getElementById('diameter').value;
+        if (!raw) { setField('diameter','hint-diameter','icon-diameter','',''); return false; }
+        const val = parseFloat(raw);
+        if (isNaN(val)||val<=0) { setField('diameter','hint-diameter','icon-diameter','error','Must be a positive number'); return false; }
+        if (val>300)            { setField('diameter','hint-diameter','icon-diameter','error','Max 300 mm'); return false; }
+        if (VALID_DIAMETERS.includes(val)) {
+            setField('diameter','hint-diameter','icon-diameter','ok',`✓ Standard metric ${val}mm stud — table loaded`);
+        } else {
+            setField('diameter','hint-diameter','icon-diameter','warn','Non-standard metric size — fallback formula used');
+        }
+        return true;
+    }
+
+    function validateStandard() {
+        const el  = document.getElementById('din');
+        const pos = el.selectionStart;
+        el.value  = el.value.toUpperCase();
+        try { el.setSelectionRange(pos,pos); } catch(e){}
+        const val = el.value.trim();
+        if (!val) { setField('din','hint-din','icon-din','error','Standard required (e.g. NELSON, ISO 13918)'); return false; }
+        const fam = getStdFamily(val);
+        const famLabels = { nelson:'Nelson stud', iso:'ISO standard', en:'Euro Norm',
+                            aws:'AWS standard', other:'Custom standard' };
+        setField('din','hint-din','icon-din','ok',`✓ ${famLabels[fam]}`);
+        return true;
+    }
+
+    function validateLength() {
+        const raw = document.getElementById('length').value;
+        if (!raw) { setField('length','hint-length','icon-length','',''); return false; }
+        const val = parseFloat(raw);
+        const dia = parseFloat(document.getElementById('diameter').value);
+        if (isNaN(val)||val<=0) { setField('length','hint-length','icon-length','error','Must be a positive number'); return false; }
+        if (val>3000)           { setField('length','hint-length','icon-length','error','Max 3000 mm'); return false; }
+        if (!isNaN(dia)&&val<dia*2) { setField('length','hint-length','icon-length','warn',`⚠ Very short for ${dia}mm stud`); return true; }
+        setField('length','hint-length','icon-length','ok',`✓ ${val} mm`);
+        return true;
+    }
+
+    function validateAll() {
+        const ok = validateDiameter() & validateStandard() & validateLength();
+        if (!ok) {
+            const err = document.querySelector('.field-invalid');
+            if (err) err.scrollIntoView({ behavior:'smooth', block:'center' });
+        }
+        return !!ok;
+    }
+
+    // ── STANDARD HELPERS ─────────────────────────────────────────────────────
+    function getStdFamily(val) {
+        const v = val.toUpperCase();
+        if (/^NELSON/.test(v))       return 'nelson';
+        if (/^ISO/.test(v))          return 'iso';
+        if (/^EN/.test(v))           return 'en';
+        if (/^AWS/.test(v))          return 'aws';
+        return 'other';
+    }
+
+    // ── AUTO NAME — format: "{STD} {dia}*{len}" ───────────────────────────────
+    function buildAutoName(std, d, L) {
+        return `${std} ${d}*${L}`;
+    }
+
+    function updateAutoName() {
+        const d   = document.getElementById('diameter').value;
+        const L   = document.getElementById('length').value;
+        const std = document.getElementById('din').value;
+        const auto = document.getElementById('autoName').checked;
+        if (auto && d && L && std) {
+            document.getElementById('customName').value    = buildAutoName(std, d, L);
+            document.getElementById('customName').readOnly = true;
+            document.getElementById('nameStatus').textContent = 'Auto';
+        } else {
+            document.getElementById('customName').readOnly = false;
+            document.getElementById('nameStatus').textContent = 'Manual';
+        }
+    }
+    function toggleAutoName() { updateAutoName(); }
+
+    function handleGradeChange() {
+        const isCustom = document.getElementById('grade').value === 'custom';
+        document.getElementById('customGradeDiv').style.display = isCustom ? 'flex' : 'none';
+        if (isCustom) document.getElementById('customGrade').focus();
+    }
+
+    function getSelectedGrade() {
+        const v = document.getElementById('grade').value;
+        return v === 'custom' ? (document.getElementById('customGrade').value.trim() || 'Custom') : v;
+    }
+
+    // ── CALCULATE ─────────────────────────────────────────────────────────────
+    function calculateStandardValues() {
+        const d = parseFloat(document.getElementById('diameter').value);
+        const L = parseFloat(document.getElementById('length').value);
+        const manual = document.getElementById('manualMode').checked;
+        if (!manual && !isNaN(d) && d > 0) {
+            const headH = getHeadHeight(d);
+            const headD = getHeadDiam(d);
+            document.getElementById('p1').value = headH;
+            document.getElementById('p5').value = headD;
+            if (!isNaN(L) && L > 0) {
+                document.getElementById('weight').value = getWeight(d, L, headH, headD);
+            }
+        }
+        updateAutoName();
+    }
+
+    function toggleManualMode() {
+        const manual = document.getElementById('manualMode').checked;
+        ['p1','p5','weight'].forEach(id => {
+            const el = document.getElementById(id);
+            el.readOnly    = !manual;
+            el.style.background = manual ? '#fff' : '#e8e8e8';
+        });
+        if (!manual) calculateStandardValues();
+    }
+
+    // ── ADD / SAVE ────────────────────────────────────────────────────────────
+    function addStud() {
+        if (!validateAll()) return;
+        dismissDupBanner();
+
+        const d     = parseFloat(document.getElementById('diameter').value);
+        const std   = document.getElementById('din').value.trim();
+        const L     = parseFloat(document.getElementById('length').value);
+        const grade = getSelectedGrade();
+        const manual = document.getElementById('manualMode').checked;
+
+        let p1, p5, weight;
+        if (manual) {
+            p1     = parseFloat(document.getElementById('p1').value) || 0;
+            p5     = parseFloat(document.getElementById('p5').value) || 0;
+            weight = parseFloat(document.getElementById('weight').value) || 0;
+        } else {
+            p1     = getHeadHeight(d);
+            p5     = getHeadDiam(d);
+            weight = getWeight(d, L, p1, p5);
+        }
+
+        const name = document.getElementById('autoName').checked
+            ? buildAutoName(std, d, L)
+            : (document.getElementById('customName').value.trim() || buildAutoName(std, d, L));
+
+        const stud = {
+            diameter: d,
+            din:      std,
+            length:   L,
+            name,
+            p1,
+            p2: 0,
+            p3: 0,
+            p4: 0,
+            p5,
+            p6: 0,
+            type:   301,
+            weight,
+            grade
+        };
+
+        const dupIdx = findDuplicate(d, std, L, editIndex);
+        if (dupIdx !== -1) {
+            pendingDupStud = stud;
+            showDupBanner(d, std, L, stud, dupIdx);
+            return;
+        }
+
+        let savedIndex;
+        if (editIndex !== null) {
+            savedIndex = editIndex;
+            studs[editIndex] = stud;
+            editIndex = null;
+            renderTable();
+            clearInputs();
+            flashRow(savedIndex);
+            showToast(`💾 Row #${savedIndex+1} updated — ${stud.name}`, true);
+        } else {
+            studs.push(stud);
+            savedIndex = studs.length - 1;
+            renderTable();
+            clearInputs();
+            flashRow(savedIndex);
+            showToast(`✅ Stud added — ${stud.name}`);
+        }
+    }
+
+    function cancelEdit() { editIndex = null; dismissDupBanner(); clearInputs(); }
+
+    // ── EDIT ──────────────────────────────────────────────────────────────────
+    function editStud(i) {
+        const s = studs[i];
+        document.getElementById('diameter').value = s.diameter;
+        document.getElementById('din').value      = s.din;
+        document.getElementById('length').value   = s.length;
+        document.getElementById('p1').value       = s.p1;
+        document.getElementById('p5').value       = s.p5;
+        document.getElementById('weight').value   = s.weight;
+
+        const expectedAutoName = buildAutoName(s.din, s.diameter, s.length);
+        document.getElementById('autoName').checked = (s.name === expectedAutoName);
+        document.getElementById('customName').value = s.name;
+        updateAutoName();
+        validateDiameter(); validateStandard(); validateLength();
+
+        const stdGrades = ['S235','S355','Grade 50','Grade 60','SS304','SS316'];
+        if (stdGrades.includes(s.grade)) {
+            document.getElementById('grade').value = s.grade;
+            document.getElementById('customGradeDiv').style.display = 'none';
+        } else {
+            document.getElementById('grade').value = 'custom';
+            document.getElementById('customGradeDiv').style.display = 'flex';
+            document.getElementById('customGrade').value = s.grade;
+        }
+
+        editIndex = i;
+        document.getElementById('formTitle').textContent   = `✏️ Editing Stud #${i+1} — ${s.name}`;
+        document.getElementById('addBtn').textContent      = '💾 Save Changes';
+        document.getElementById('addBtn').style.background = '#0d6efd';
+        document.getElementById('addBtn').style.color      = 'white';
+        document.getElementById('cancelBtn').style.display = 'inline-block';
+
+        document.querySelectorAll('#studTableBody tr').forEach((r,idx) =>
+            r.classList.toggle('editing-row', idx === i));
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        showToast(`✏️ Editing Row #${i+1} — ${s.name}. Make changes and click 💾 Save Changes.`, true);
+    }
+
+    // ── DELETE ────────────────────────────────────────────────────────────────
+    function deleteStud(i) {
+        if (confirm(`Delete stud: ${studs[i].name}?`)) {
+            studs.splice(i, 1);
+            if (editIndex === i) { editIndex = null; clearInputs(); }
+            renderTable();
+            showToast(`🗑️ Stud deleted`);
+        }
+    }
+
+    function clearAll() {
+        if (confirm('⚠️ Delete ALL studs? Cannot be undone!')) {
+            studs = []; editIndex = null;
+            renderTable(); clearInputs(); dismissDupBanner();
+            showToast('🗑️ All studs cleared');
+        }
+    }
+
+    // ── RENDER TABLE ──────────────────────────────────────────────────────────
+    function renderTable() {
+        const tbody = document.getElementById('studTableBody');
+        tbody.innerHTML = '';
+        if (!studs.length) {
+            const row = tbody.insertRow();
+            row.className = 'no-studs-row';
+            row.insertCell(0).colSpan = 15;
+            row.cells[0].textContent = 'No studs added yet — fill the form above and click ➕ Add Stud';
+            document.getElementById('studCount').textContent = '0';
+            return;
+        }
+        studs.forEach((s, i) => {
+            const row = tbody.insertRow();
+            [i+1, s.diameter, s.din, s.length, s.name, s.grade||'S355',
+             s.p1, s.p5, s.p2, s.p3, s.p4, s.p6, s.type, s.weight
+            ].forEach((v, col) => { row.insertCell(col).textContent = v; });
+            row.insertCell(14).innerHTML =
+                `<button class="edit-btn"   onclick="editStud(${i})">✏️ Edit</button>
+                 <button class="delete-btn" onclick="deleteStud(${i})">🗑️ Del</button>`;
+        });
+        document.getElementById('studCount').textContent = studs.length;
+    }
+
+    // ── CLEAR FORM ────────────────────────────────────────────────────────────
+    function clearInputs() {
+        ['diameter','length'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('din').value             = 'NELSON';
+        document.getElementById('grade').value           = 'S355';
+        document.getElementById('customGradeDiv').style.display = 'none';
+        document.getElementById('customGrade').value     = '';
+        document.getElementById('autoName').checked      = true;
+        document.getElementById('customName').value      = '';
+        document.getElementById('customName').readOnly   = true;
+        document.getElementById('formTitle').textContent = '➕ Add New Stud';
+        document.getElementById('addBtn').textContent    = '➕ Add Stud';
+        document.getElementById('addBtn').style.background = '#007bff';
+        document.getElementById('addBtn').style.color    = 'white';
+        document.getElementById('cancelBtn').style.display = 'none';
+        editIndex = null;
+        updateAutoName();
+        ['diameter','din','length'].forEach(id =>
+            document.getElementById(id).classList.remove('field-valid','field-invalid','field-warn','field-dup'));
+        ['hint-diameter','hint-din','hint-length'].forEach(id =>
+            document.getElementById(id).textContent = '');
+        ['icon-diameter','icon-din','icon-length'].forEach(id =>
+            document.getElementById(id).textContent = '');
+        if (!document.getElementById('manualMode').checked)
+            ['p1','p5','weight'].forEach(id => document.getElementById(id).value = '');
+        document.querySelectorAll('#studTableBody tr').forEach(r =>
+            r.classList.remove('editing-row','duplicate-row'));
+    }
+
+    // ── EXPORT ────────────────────────────────────────────────────────────────
+    function exportJSON(fileType) {
+        if (!studs.length) { alert('No studs to export!'); return; }
+        // Export without the grade field to match Tekla format (type 301)
+        const exportData = studs.map(({ grade, ...rest }) => rest);
+        const json  = JSON.stringify({ Bolts: exportData }, null, 2);
+        const ext   = fileType === 'bolts' ? '.bolts' : '.json';
+        const fname = (fileType === 'bolts' ? 'tekla_studs_' : 'studs_')
+                      + new Date().toISOString().slice(0,19).replace(/:/g,'-');
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+        a.download = fname + ext; a.click(); URL.revokeObjectURL(a.href);
+        showToast(`✅ Exported ${studs.length} stud(s) → ${fname}${ext}`);
+    }
+
+    function exportCSV() {
+        if (!studs.length) { alert('No studs to export!'); return; }
+        const headers = ['diameter','din','length','name','grade','p1','p2','p3','p4','p5','p6','type','weight'];
+        const csv = [headers.join(','), ...studs.map(s => headers.map(h => s[h]??'').join(','))].join('\n');
+        const fname = 'studs_' + new Date().toISOString().slice(0,19).replace(/:/g,'-') + '.csv';
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+        a.download = fname; a.click(); URL.revokeObjectURL(a.href);
+        showToast(`✅ Exported ${studs.length} stud(s) → ${fname}`);
+    }
+
+    // ── INIT ──────────────────────────────────────────────────────────────────
+    toggleManualMode();
+    updateAutoName();
+    validateStandard();
+</script>
+</body>
+</html>
