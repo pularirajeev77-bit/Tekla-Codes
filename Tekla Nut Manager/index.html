@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Nut Manager - Tekla Structures Ready</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1400px; margin: 20px auto; padding: 0 20px; }
+        .input-area { background: #f0f0f0; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .input-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; align-items: flex-start; }
+        .input-group { display: flex; align-items: flex-start; gap: 5px; }
+        .input-group label { font-weight: bold; min-width: 140px; padding-top: 6px; }
+        .input-group input { width: 90px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+        .input-group-small label { min-width: 90px; }
+        .input-group-small input { width: 70px; }
+        button { background: #007bff; color: white; border: none; padding: 8px 16px; margin: 5px; cursor: pointer; border-radius: 4px; font-size: 14px; }
+        button:hover { opacity: 0.8; }
+        .delete-btn  { background: #dc3545; }
+        .edit-btn    { background: #ffc107; color: black; }
+        .export-btn  { background: #28a745; font-size: 15px; padding: 10px 20px; }
+        .tekla-export{ background: #6f42c1; }
+        .clear-btn   { background: #6c757d; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 7px 8px; text-align: left; font-size: 12px; }
+        th { background: #007bff; color: white; position: sticky; top: 0; z-index: 1; white-space: nowrap; }
+        td { white-space: nowrap; }
+        .status { margin: 10px 0; padding: 10px; background: #e9ecef; border-radius: 4px; display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
+        .formula-badge { background: #28a745; color: white; padding: 2px 7px; border-radius: 12px; font-size: 11px; margin-left: 4px; white-space: nowrap; }
+        .nut-count { font-size: 20px; font-weight: bold; color: #007bff; }
+        .table-container { max-height: 420px; overflow-y: auto; border: 2px solid #007bff; border-radius: 4px; }
+        .checkbox-group { display: flex; align-items: center; gap: 15px; margin-top: 10px; flex-wrap: wrap; }
+        .export-group { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+        .info-box  { background: #e7f3ff; border-left: 4px solid #007bff; padding: 10px; margin: 10px 0; font-size: 12px; }
+        .warn-box  { background: #fff8e1; border-left: 4px solid #ffc107; padding: 10px; margin: 10px 0; font-size: 12px; }
+        .sample-box{ background: #f8f9fa; border: 1px solid #dee2e6; padding: 10px; margin: 10px 0; font-family: monospace; font-size: 11px; overflow-x: auto; }
+        select { padding: 6px; border-radius: 4px; border: 1px solid #ccc; }
+        .grade-custom { display: flex; gap: 5px; align-items: center; }
+        .tooltip { cursor: help; border-bottom: 1px dotted #999; }
+        .legend { background: white; padding: 12px; border-radius: 5px; margin-bottom: 10px; border: 1px solid #ddd; }
+        .legend h4 { margin: 0 0 8px 0; font-size: 13px; color: #333; }
+        .legend table { margin-top: 8px; font-size: 11px; }
+        .legend th { background: #495057; font-size: 11px; padding: 4px 8px; }
+        .legend td { padding: 3px 8px; white-space: normal; }
+        .legend tr:nth-child(even) td { background: #f8f9fa; }
+        .legend tr.sg td { background: #e8f5e9; }
+        .legend tr.sm td { background: #fff3e0; }
+        .legend tr.sl td { background: #e3f2fd; }
+        h1 { color: #333; }
+
+        /* ── Validation ── */
+        .field-valid   { border: 2px solid #28a745 !important; background: #f6fff8 !important; }
+        .field-invalid { border: 2px solid #dc3545 !important; background: #fff5f5 !important; }
+        .field-warn    { border: 2px solid #ffc107 !important; background: #fffdf0 !important; }
+        .field-dup     { border: 2px solid #fd7e14 !important; background: #fff4ec !important; }
+        .hint { font-size: 10px; margin-top: 2px; display: block; min-height: 13px; }
+        .hint-ok    { color: #28a745; }
+        .hint-error { color: #dc3545; }
+        .hint-warn  { color: #e67e00; }
+        .hint-dup   { color: #c94a00; font-weight: bold; }
+        .input-wrap { display: flex; flex-direction: column; }
+        .valid-icon { font-size: 14px; padding-top: 4px; }
+
+        /* ── Duplicate banner ── */
+        .dup-banner {
+            display: none; background: #fff4ec;
+            border: 2px solid #fd7e14; border-radius: 6px;
+            padding: 10px 14px; margin: 8px 0; font-size: 13px; color: #7c3700;
+        }
+        .dup-banner strong { color: #c94a00; }
+        .dup-banner .dup-actions { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+        /* ── Toast notification ── */
+        #toast {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(80px);
+            background: #198754; color: white; padding: 12px 28px;
+            border-radius: 8px; font-size: 14px; font-weight: bold;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+            transition: transform 0.35s ease, opacity 0.35s ease;
+            opacity: 0; z-index: 9999; pointer-events: none; white-space: nowrap;
+        }
+        #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        #toast.toast-update { background: #0d6efd; }
+
+        /* ── Row highlights ── */
+        .editing-row   { background: #fff3cd !important; }
+        .duplicate-row { background: #fff0e6 !important; outline: 2px solid #fd7e14; }
+        .saved-flash   { animation: flashGreen 1.8s ease forwards; }
+        @keyframes flashGreen {
+            0%   { background: #d1e7dd; }
+            30%  { background: #a3cfbb; }
+            100% { background: transparent; }
+        }
+        .no-nuts-row td { text-align: center; color: #888; font-style: italic; padding: 20px; }
+
+        /* ── Standard tags ── */
+        .std-tag  { display:inline-block; padding:1px 5px; border-radius:3px; font-size:10px; margin-left:4px; }
+        .std-din  { background:#cfe2ff; color:#084298; }
+        .std-iso  { background:#d1e7dd; color:#0a3622; }
+        .std-bs   { background:#f8d7da; color:#58151c; }
+        .std-en   { background:#fff3cd; color:#664d03; }
+        .std-astm { background:#e2d9f3; color:#3d0a91; }
+        .std-other{ background:#e2e3e5; color:#383d41; }
+    </style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<h1>🔩 Nut Manager — Tekla Structures Ready</h1>
+<p>✅ DIN 934 / ISO 4032 / EN / ASTM | M1.6 → M64 | ✏️ Edit Mode | 📤 Tekla JSON Export</p>
+
+<div class="legend">
+    <h4>📖 DIN 934 / ISO 4032 Full Reference Table — Hex Nuts (M1.6 to M64)</h4>
+    <table>
+        <thead>
+            <tr>
+                <th>Size</th><th>Thickness m (mm)</th>
+                <th>Wrench Size s (mm)</th><th>Across Corners e (mm)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="sg"><td>M1.6</td><td>1.3</td><td>3.2</td><td>3.7</td></tr>
+            <tr class="sg"><td>M2</td><td>1.6</td><td>4.0</td><td>4.6</td></tr>
+            <tr class="sg"><td>M2.5</td><td>2.0</td><td>5.0</td><td>5.8</td></tr>
+            <tr class="sg"><td>M3</td><td>2.4</td><td>5.5</td><td>6.4</td></tr>
+            <tr class="sg"><td>M4</td><td>3.2</td><td>7.0</td><td>8.1</td></tr>
+            <tr class="sg"><td>M5</td><td>4.0</td><td>8.0</td><td>9.2</td></tr>
+            <tr class="sg"><td>M6</td><td>5.0</td><td>10.0</td><td>11.5</td></tr>
+            <tr class="sg"><td>M8</td><td>6.5</td><td>13.0</td><td>15.0</td></tr>
+            <tr class="sm"><td>M10</td><td>8.0</td><td>16.0</td><td>18.5</td></tr>
+            <tr class="sm"><td>M12</td><td>10.0</td><td>18.0</td><td>20.8</td></tr>
+            <tr class="sm"><td>M14</td><td>11.0</td><td>21.0</td><td>24.2</td></tr>
+            <tr class="sm"><td>M16</td><td>13.0</td><td>24.0</td><td>27.7</td></tr>
+            <tr class="sm"><td>M18</td><td>15.0</td><td>27.0</td><td>31.2</td></tr>
+            <tr class="sm"><td>M20</td><td>16.0</td><td>30.0</td><td>34.6</td></tr>
+            <tr class="sm"><td>M22</td><td>18.0</td><td>34.0</td><td>39.3</td></tr>
+            <tr class="sm"><td>M24</td><td>19.0</td><td>36.0</td><td>41.6</td></tr>
+            <tr class="sm"><td>M27</td><td>22.0</td><td>41.0</td><td>47.3</td></tr>
+            <tr class="sl"><td>M30</td><td>24.0</td><td>46.0</td><td>53.1</td></tr>
+            <tr class="sl"><td>M33</td><td>26.0</td><td>50.0</td><td>57.7</td></tr>
+            <tr class="sl"><td>M36</td><td>29.0</td><td>55.0</td><td>63.5</td></tr>
+            <tr class="sl"><td>M39</td><td>31.0</td><td>60.0</td><td>69.3</td></tr>
+            <tr class="sl"><td>M42</td><td>34.0</td><td>65.0</td><td>75.1</td></tr>
+            <tr class="sl"><td>M45</td><td>36.0</td><td>70.0</td><td>80.8</td></tr>
+            <tr class="sl"><td>M48</td><td>38.0</td><td>75.0</td><td>86.6</td></tr>
+            <tr class="sl"><td>M52</td><td>42.0</td><td>80.0</td><td>92.4</td></tr>
+            <tr class="sl"><td>M56</td><td>45.0</td><td>85.0</td><td>98.1</td></tr>
+            <tr class="sl"><td>M60</td><td>48.0</td><td>90.0</td><td>104.0</td></tr>
+            <tr class="sl"><td>M64</td><td>51.0</td><td>95.0</td><td>109.7</td></tr>
+        </tbody>
+    </table>
+    <p style="margin-top:6px;font-size:11px;">
+        🟢 Small (M1.6–M8) | 🟠 Medium (M10–M27) | 🔵 Large (M30–M64) |
+        <strong>e</strong> = s × 1.1547 |
+        <strong>Weight</strong> = (Hex Prism Vol - Hole Vol) × 7.85 g/cm³
+    </p>
+    <p style="font-size:11px;margin-top:4px;">
+        <strong>Accepted Standards:</strong>
+        <span class="std-tag std-din">DIN 934/439</span>
+        <span class="std-tag std-iso">ISO 4032/4035</span>
+        <span class="std-tag std-astm">ASTM A563/A194</span>
+        <span class="std-tag std-other">+ any custom</span>
+    </p>
+</div>
+
+<div class="info-box">
+    💡 <strong>Quick Guide:</strong> Enter Diameter → Parameters auto-fill from standard tables to match Tekla's specific Nut mapping.<br>
+    📌 <strong>Tekla Schema Fix:</strong> Tekla requires `type: 101` for nuts. This is now hardcoded automatically so you don't have to worry about it.<br>
+    🔁 <strong>Duplicate check</strong> — same Diameter + Standard warns before saving.
+</div>
+
+<div class="warn-box">
+    ⚠️ <strong>Grade Export:</strong> Nut grades (usually 8, 10, 12) are completely stripped out on the final Tekla `.bolts` JSON export to ensure clean catalog parsing.
+</div>
+
+<div class="dup-banner" id="dupBanner">
+    <strong>⚠️ Duplicate Detected!</strong>
+    <span id="dupMessage"></span>
+    <div class="dup-actions">
+        <button onclick="forceSaveDuplicate()" style="background:#fd7e14;">➕ Add Anyway</button>
+        <button onclick="jumpToExisting()"     style="background:#6c757d;">🔍 Jump to Existing</button>
+        <button onclick="dismissDupBanner()"   style="background:#aaa;color:#333;">✖ Dismiss</button>
+    </div>
+</div>
+
+<div class="input-area">
+    <h3 id="formTitle">➕ Add New Nut</h3>
+
+    <div class="input-row">
+        <div class="input-group">
+            <label class="tooltip" title="Numeric diameter in mm — e.g. 6, 16, 20">📏 Diameter (mm):</label>
+            <div class="input-wrap">
+                <input type="number" id="diameter" step="0.5" min="1" max="300"
+                       oninput="validateDiameter(); checkDuplicate();"
+                       onchange="calculateStandardValues(); checkDuplicate();">
+                <span class="hint" id="hint-diameter"></span>
+            </div>
+            <span class="valid-icon" id="icon-diameter"></span>
+        </div>
+
+        <div class="input-group">
+            <label class="tooltip" title="Standard text (e.g. DIN 934)">📄 Standard:</label>
+            <div class="input-wrap">
+                <input type="text" id="din" value="934" style="width:130px;text-transform:uppercase"
+                       oninput="validateStandard(); checkDuplicate();"
+                       onchange="calculateStandardValues(); checkDuplicate();"
+                       maxlength="20">
+                <span class="hint" id="hint-din"></span>
+            </div>
+            <span class="valid-icon" id="icon-din"></span>
+        </div>
+
+        </div>
+
+    <div class="input-row">
+        <div class="input-group">
+            <label class="tooltip" title="Nut height/thickness m">📏 p1 (Thickness):</label>
+            <input type="number" id="p1" step="0.1" readonly style="background:#e8e8e8">
+            <span class="formula-badge">DIN Table</span>
+        </div>
+        <div class="input-group">
+            <label class="tooltip" title="Width across flats s">🔧 p4 (Wrench s):</label>
+            <input type="number" id="p4" step="0.1" readonly style="background:#e8e8e8">
+            <span class="formula-badge">DIN Table</span>
+        </div>
+        <div class="input-group">
+            <label class="tooltip" title="Across corners e">🔘 p5 (Corners e):</label>
+            <input type="number" id="p5" step="0.1" readonly style="background:#e8e8e8">
+            <span class="formula-badge">s × 1.1547</span>
+        </div>
+    </div>
+
+    <div class="input-row">
+        <div class="input-group-small">
+            <label class="tooltip" title="Secondary thickness mapped by Tekla">📏 p2 (Thick 2):</label>
+            <input type="number" id="p2" step="0.1" readonly style="background:#e8e8e8">
+            <span class="formula-badge" id="p2Badge">Matches p1</span>
+        </div>
+        <div class="input-group-small">
+            <label class="tooltip" title="Inner clearance mapped by Tekla">📐 p3 (Clearance):</label>
+            <input type="number" id="p3" step="0.1" readonly style="background:#e8e8e8">
+            <span class="formula-badge" id="p3Badge">d + 2</span>
+        </div>
+        <div class="input-group">
+            <label class="tooltip" title="Additional distance">➕ p6 (Add. Dist):</label>
+            <input type="number" id="p6" value="0" step="0.1">
+        </div>
+        <div class="input-group">
+            <label class="tooltip" title="Weight grams">⚖️ Weight (grams):</label>
+            <input type="number" id="weight" step="0.01" readonly style="background:#e8e8e8">
+            <span class="formula-badge">Auto</span>
+        </div>
+    </div>
+
+    <div class="input-row">
+        <div class="input-group">
+            <label class="tooltip" title="Material strength grade for nuts">🏭 Grade:</label>
+            <select id="grade" onchange="handleGradeChange()">
+                <option value="6">Grade 6</option>
+                <option value="8" selected>Grade 8 (Standard)</option>
+                <option value="10">Grade 10</option>
+                <option value="12">Grade 12</option>
+                <option value="A194">ASTM A194</option>
+                <option value="A563">ASTM A563</option>
+                <option value="custom">✏️ Custom...</option>
+            </select>
+        </div>
+        <div class="grade-custom" id="customGradeDiv" style="display:none;">
+            <label>Custom:</label>
+            <input type="text" id="customGrade" placeholder="e.g. 2H"
+                   style="width:100px;text-transform:uppercase"
+                   oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div class="input-group">
+            <label class="tooltip" title="Nut name for Tekla catalog">📝 Name:</label>
+            <input type="text" id="customName" placeholder="Auto-generated" style="width:200px">
+            <span class="formula-badge" id="nameStatus">Auto</span>
+        </div>
+    </div>
+
+    <div class="checkbox-group">
+        <label>
+            <input type="checkbox" id="autoName" checked onchange="toggleAutoName()">
+            Auto-generate Name &nbsp;<code style="font-size:11px;background:#ddd;padding:1px 4px;border-radius:3px;">NUT{dia}-{STD}</code>
+        </label>
+        <label>
+            <input type="checkbox" id="manualMode" onchange="toggleManualMode()">
+            ✏️ Manual Override (unlock formula fields)
+        </label>
+    </div>
+
+    <div style="margin-top:15px;">
+        <button onclick="addNut()"    id="addBtn">➕ Add Nut</button>
+        <button onclick="cancelEdit()" id="cancelBtn" class="clear-btn" style="display:none;">✖ Cancel Edit</button>
+        <button onclick="clearInputs()" class="clear-btn">🗑️ Clear Form</button>
+    </div>
+</div>
+
+<div class="status">
+    <span>📊 Total Nuts:</span>
+    <span id="nutCount" class="nut-count">0</span>
+    <button onclick="clearAll()" class="clear-btn">🗑️ Clear All</button>
+</div>
+
+<div class="table-container" id="tableContainer">
+    <table id="nutTable">
+        <thead>
+            <tr>
+                <th>#</th><th>Diameter</th><th>Standard</th>
+                <th>Name</th><th>Grade</th>
+                <th>p1 (Thick)</th><th>p2 (Thick 2)</th><th>p3 (Clear)</th>
+                <th>p4 (Wrench s)</th><th>p5 (Corners e)</th><th>p6</th>
+                <th>Type</th><th>Weight (g)</th><th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="nutTableBody">
+            <tr class="no-nuts-row">
+                <td colspan="14">No nuts added yet — fill the form above and click ➕ Add Nut</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="export-group">
+    <button class="export-btn" onclick="exportJSON('json')">📤 Export JSON (.json)</button>
+    <button class="export-btn tekla-export" onclick="exportJSON('tekla')">🏗️ Export Tekla (.bolts)</button>
+</div>
+
+<div class="sample-box">
+    <strong>📋 Your Target Tekla Output Format (Auto-Generated):</strong><br>
+    {"Bolts": [ { "diameter":20, "din":"934", "length":0, "name":"NUT20-934", "p1":16, "p2":16, "p3":22, "p4":30, "p5":34.6, "p6":0, "type":101, "weight":64.4 } ] }
+</div>
+
+<script>
+    let nuts = [];
+    let editIndex        = null;
+    let pendingDupNut    = null;
+    let dupExistingIndex = null;
+
+    const VALID_DIAMETERS = [1.6,2,2.5,3,4,5,6,8,10,12,14,16,18,20,22,24,27,30,33,36,39,42,45,48,52,56,60,64];
+
+    // ── TOAST ────────────────────────────────────────────────────────────────────
+    let toastTimer;
+    function showToast(msg, isUpdate) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className   = 'show' + (isUpdate ? ' toast-update' : '');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => { t.className = ''; }, 3000);
+    }
+
+    // ── FLASH ROW (green) + SCROLL ────────────────────────────────────────────
+    function flashRow(index) {
+        setTimeout(() => {
+            const rows = document.querySelectorAll('#nutTableBody tr');
+            if (!rows[index]) return;
+            const row = rows[index];
+            row.classList.remove('saved-flash');
+            void row.offsetWidth;
+            row.classList.add('saved-flash');
+            const container = document.getElementById('tableContainer');
+            const rowTop    = row.offsetTop;
+            container.scrollTo({ top: rowTop - 40, behavior: 'smooth' });
+        }, 50);
+    }
+
+    // ── DUPLICATE CHECK ───────────────────────────────────────────────────────
+    function findDuplicate(diameter, std, skipIndex) {
+        return nuts.findIndex((n, i) => {
+            if (i === skipIndex) return false;
+            return n.diameter === diameter &&
+                   n.din.toUpperCase() === std.toUpperCase();
+        });
+    }
+
+    function checkDuplicate() {
+        const d   = parseFloat(document.getElementById('diameter').value);
+        const std = document.getElementById('din').value.trim();
+        if (isNaN(d) || !std) { dismissDupBanner(); return; }
+
+        const idx = findDuplicate(d, std, editIndex);
+        if (idx !== -1) {
+            ['diameter','din'].forEach(id => {
+                const el = document.getElementById(id);
+                el.classList.remove('field-valid','field-invalid','field-warn');
+                el.classList.add('field-dup');
+            });
+            document.getElementById('hint-diameter').textContent = '⚠ Duplicate!';
+            document.getElementById('hint-diameter').className   = 'hint hint-dup';
+            document.getElementById('hint-din').textContent      = '⚠ Duplicate!';
+            document.getElementById('hint-din').className        = 'hint hint-dup';
+        } else {
+            dismissDupBanner();
+            validateDiameter(); validateStandard();
+        }
+    }
+
+    function showDupBanner(d, std, nut, existIdx) {
+        pendingDupNut    = nut;
+        dupExistingIndex = existIdx;
+        const ex = nuts[existIdx];
+        document.getElementById('dupMessage').innerHTML =
+            ` A nut <strong>M${d} ${std}</strong> already exists at row
+              <strong>#${existIdx+1}</strong> (${ex.name}, Grade ${ex.grade}). What would you like to do?`;
+        document.getElementById('dupBanner').style.display = 'block';
+        document.getElementById('dupBanner').scrollIntoView({ behavior:'smooth', block:'center' });
+        document.querySelectorAll('#nutTableBody tr').forEach((r,i) =>
+            r.classList.toggle('duplicate-row', i === existIdx));
+    }
+
+    function forceSaveDuplicate() {
+        if (!pendingDupNut) return;
+        let savedIndex;
+        if (editIndex !== null) {
+            savedIndex = editIndex;
+            nuts[editIndex] = pendingDupNut;
+            editIndex = null;
+        } else {
+            nuts.push(pendingDupNut);
+            savedIndex = nuts.length - 1;
+        }
+        pendingDupNut = null; dupExistingIndex = null;
+        renderTable();
+        clearInputs();
+        dismissDupBanner();
+        flashRow(savedIndex);
+        showToast(`✅ Saved (duplicate allowed) — ${nuts[savedIndex].name}`, true);
+    }
+
+    function jumpToExisting() {
+        if (dupExistingIndex === null) return;
+        const rows = document.querySelectorAll('#nutTableBody tr');
+        if (rows[dupExistingIndex]) {
+            rows[dupExistingIndex].scrollIntoView({ behavior:'smooth', block:'center' });
+            rows[dupExistingIndex].style.outline = '3px solid #fd7e14';
+            setTimeout(() => rows[dupExistingIndex].style.outline = '', 2500);
+        }
+        dismissDupBanner();
+    }
+
+    function dismissDupBanner() {
+        document.getElementById('dupBanner').style.display = 'none';
+        pendingDupNut = null; dupExistingIndex = null;
+        document.querySelectorAll('#nutTableBody tr').forEach(r => r.classList.remove('duplicate-row'));
+        ['diameter','din'].forEach(id => document.getElementById(id).classList.remove('field-dup'));
+    }
+
+    // ── VALIDATION ────────────────────────────────────────────────────────────
+    function setField(inputId, hintId, iconId, state, msg) {
+        const el   = document.getElementById(inputId);
+        const hint = document.getElementById(hintId);
+        const icon = iconId ? document.getElementById(iconId) : null;
+        el.classList.remove('field-valid','field-invalid','field-warn','field-dup');
+        if (state==='ok')    { el.classList.add('field-valid');   if(icon) icon.textContent='✅'; }
+        if (state==='error') { el.classList.add('field-invalid'); if(icon) icon.textContent='❌'; }
+        if (state==='warn')  { el.classList.add('field-warn');    if(icon) icon.textContent='⚠️'; }
+        if (state==='')      { if(icon) icon.textContent=''; }
+        if (hint) { hint.textContent=msg; hint.className='hint'+(state?' hint-'+state:''); }
+    }
+
+    function validateDiameter() {
+        const raw = document.getElementById('diameter').value;
+        if (!raw) { setField('diameter','hint-diameter','icon-diameter','',''); return false; }
+        const val = parseFloat(raw);
+        if (isNaN(val)||val<=0) { setField('diameter','hint-diameter','icon-diameter','error','Must be a positive number'); return false; }
+        if (val>300)            { setField('diameter','hint-diameter','icon-diameter','error','Max 300 mm'); return false; }
+        if (VALID_DIAMETERS.includes(val)) {
+            setField('diameter','hint-diameter','icon-diameter','ok',`Standard M${val}`);
+        } else {
+            setField('diameter','hint-diameter','icon-diameter','warn','Non-standard size');
+        }
+        return true;
+    }
+
+    function validateStandard() {
+        const el  = document.getElementById('din');
+        const pos = el.selectionStart;
+        el.value  = el.value.toUpperCase();
+        try { el.setSelectionRange(pos,pos); } catch(e){}
+        const val = el.value.trim();
+        if (!val) { setField('din','hint-din','icon-din','error','Standard required'); return false; }
+        setField('din','hint-din','icon-din','ok',`✓ Standard logged`);
+        return true;
+    }
+
+    function validateAll() {
+        const ok = validateDiameter() & validateStandard();
+        if (!ok) {
+            const err = document.querySelector('.field-invalid');
+            if (err) err.scrollIntoView({ behavior:'smooth', block:'center' });
+        }
+        return !!ok;
+    }
+
+    // ── DIN 934 LOOKUP TABLES ───────────────────────────────────────────────
+    function getStandardNutThickness(d) {
+        const m = { 1.6:1.3,2:1.6,2.5:2.0,3:2.4,4:3.2,5:4.0,6:5.0,8:6.5,
+                    10:8.0,12:10.0,14:11.0,16:13.0,18:15.0,20:16.0,22:18.0,24:19.0,27:22.0,
+                    30:24.0,33:26.0,36:29.0,39:31.0,42:34.0,45:36.0,
+                    48:38.0,52:42.0,56:45.0,60:48.0,64:51.0 };
+        return m[d]!==undefined ? m[d] : parseFloat((d*0.8).toFixed(2));
+    }
+
+    function getStandardWrenchSize(d) {
+        const s = { 1.6:3.2,2:4.0,2.5:5.0,3:5.5,4:7.0,5:8.0,6:10.0,8:13.0,
+                    10:16.0,12:18.0,14:21.0,16:24.0,18:27.0,20:30.0,22:34.0,24:36.0,27:41.0,
+                    30:46.0,33:50.0,36:55.0,39:60.0,42:65.0,45:70.0,
+                    48:75.0,52:80.0,56:85.0,60:90.0,64:95.0 };
+        return s[d]!==undefined ? s[d] : parseFloat((d*1.5).toFixed(2));
+    }
+
+    function getAcrossCorners(d) { return parseFloat((getStandardWrenchSize(d)*1.1547).toFixed(2)); }
+
+    function getNutWeight(d, m, s) {
+        const dc = d / 10;
+        const mc = m / 10;
+        const sc = s / 10;
+        const hexArea = (Math.sqrt(3)/2) * Math.pow(sc, 2);
+        const holeArea = Math.PI * Math.pow(dc / 2, 2);
+        const volume = (hexArea - holeArea) * mc;
+        return parseFloat((volume * 7.85).toFixed(2));
+    }
+
+    // ── AUTO NAME ─────────────────────────────────────────────────────────────
+    function updateAutoName() {
+        const d=document.getElementById('diameter').value;
+        const std=document.getElementById('din').value;
+        const auto=document.getElementById('autoName').checked;
+        if (auto&&d&&std) {
+            document.getElementById('customName').value=`NUT${d}-${std}`;
+            document.getElementById('customName').readOnly=true;
+            document.getElementById('nameStatus').textContent='Auto';
+        } else {
+            document.getElementById('customName').readOnly=false;
+            document.getElementById('nameStatus').textContent='Manual';
+        }
+    }
+    function toggleAutoName() { updateAutoName(); }
+
+    function handleGradeChange() {
+        const isCustom=document.getElementById('grade').value==='custom';
+        document.getElementById('customGradeDiv').style.display=isCustom?'flex':'none';
+        if (isCustom) document.getElementById('customGrade').focus();
+    }
+
+    function getSelectedGrade() {
+        const v=document.getElementById('grade').value;
+        return v==='custom'?(document.getElementById('customGrade').value.trim()||'Custom'):v;
+    }
+
+    // ── CALCULATE MATH FOR NUTS ───────────────────────────────────────────────
+    function calculateStandardValues() {
+        const d=parseFloat(document.getElementById('diameter').value);
+        const manual=document.getElementById('manualMode').checked;
+
+        if (!manual&&!isNaN(d)&&d>0) {
+            const m = getStandardNutThickness(d);
+            const s = getStandardWrenchSize(d);
+            const e = getAcrossCorners(d);
+
+            document.getElementById('p1').value = m;
+            document.getElementById('p2').value = m;
+            document.getElementById('p3').value = d + 2;
+            document.getElementById('p4').value = s;
+            document.getElementById('p5').value = e;
+
+            document.getElementById('weight').value = getNutWeight(d, m, s);
+        }
+        updateAutoName();
+    }
+
+    function toggleManualMode() {
+        const manual=document.getElementById('manualMode').checked;
+        ['p1','p2','p3','p4','p5','p6','weight'].forEach(id=>{
+            const el=document.getElementById(id);
+            el.readOnly=!manual;
+            el.style.background=manual?'#fff':'#e8e8e8';
+        });
+        if (!manual) calculateStandardValues();
+    }
+
+    // ── ADD / SAVE ────────────────────────────────────────────────────────────
+    function addNut() {
+        if (!validateAll()) return;
+        dismissDupBanner();
+
+        const d    = parseFloat(document.getElementById('diameter').value);
+        const std  = document.getElementById('din').value.trim();
+        const grade= getSelectedGrade();
+        const manual=document.getElementById('manualMode').checked;
+
+        let p1, p2, p3, p4, p5, p6, weight;
+        if (manual) {
+            p1     = parseFloat(document.getElementById('p1').value)||0;
+            p2     = parseFloat(document.getElementById('p2').value)||0;
+            p3     = parseFloat(document.getElementById('p3').value)||0;
+            p4     = parseFloat(document.getElementById('p4').value)||0;
+            p5     = parseFloat(document.getElementById('p5').value)||0;
+            p6     = parseFloat(document.getElementById('p6').value)||0;
+            weight = parseFloat(document.getElementById('weight').value)||0;
+        } else {
+            p1 = getStandardNutThickness(d);
+            p2 = p1;
+            p3 = d + 2;
+            p4 = getStandardWrenchSize(d);
+            p5 = getAcrossCorners(d);
+            p6 = 0;
+            weight = getNutWeight(d, p1, p4);
+        }
+
+        const name=document.getElementById('autoName').checked
+            ?`NUT${d}-${std}`
+            :(document.getElementById('customName').value.trim()||`NUT${d}-${std}`);
+
+        const nut={
+            diameter: d, din: std, name: name,
+            p1: p1, p2: p2, p3: p3, p4: p4, p5: p5, p6: p6,
+            type: 101, weight: weight, grade: grade // Hardcoded to 101
+        };
+
+        // Duplicate check
+        const dupIdx=findDuplicate(d, std, editIndex);
+        if (dupIdx!==-1) {
+            pendingDupNut=nut;
+            showDupBanner(d, std, nut, dupIdx);
+            return;
+        }
+
+        let savedIndex;
+        if (editIndex!==null) {
+            savedIndex=editIndex;
+            nuts[editIndex]=nut;
+            editIndex=null;
+            renderTable();
+            clearInputs();
+            flashRow(savedIndex);
+            showToast(`💾 Row #${savedIndex+1} updated — ${nut.name}`, true);
+        } else {
+            nuts.push(nut);
+            savedIndex=nuts.length-1;
+            renderTable();
+            clearInputs();
+            flashRow(savedIndex);
+            showToast(`✅ Nut added — ${nut.name}`);
+        }
+    }
+
+    function cancelEdit() { editIndex=null; dismissDupBanner(); clearInputs(); }
+
+    // ── EDIT ──────────────────────────────────────────────────────────────────
+    function editNut(i) {
+        const n=nuts[i];
+        document.getElementById('diameter').value       =n.diameter;
+        document.getElementById('din').value            =n.din;
+        document.getElementById('p1').value             =n.p1;
+        document.getElementById('p2').value             =n.p2;
+        document.getElementById('p3').value             =n.p3;
+        document.getElementById('p4').value             =n.p4;
+        document.getElementById('p5').value             =n.p5;
+        document.getElementById('p6').value             =n.p6;
+        document.getElementById('weight').value         =n.weight;
+
+        // Dynamic name link check
+        const expectedAutoName = `NUT${n.diameter}-${n.din}`;
+        document.getElementById('autoName').checked = (n.name === expectedAutoName);
+        document.getElementById('customName').value = n.name;
+
+        updateAutoName();
+        validateDiameter(); validateStandard();
+
+        const stdGrades=['6','8','10','12','A194','A563'];
+        if (stdGrades.includes(n.grade)) {
+            document.getElementById('grade').value=n.grade;
+            document.getElementById('customGradeDiv').style.display='none';
+        } else {
+            document.getElementById('grade').value='custom';
+            document.getElementById('customGradeDiv').style.display='flex';
+            document.getElementById('customGrade').value=n.grade;
+        }
+
+        editIndex=i;
+        document.getElementById('formTitle').textContent  =`✏️ Editing Nut #${i+1} — ${n.name}`;
+        document.getElementById('addBtn').textContent     ='💾 Save Changes';
+        document.getElementById('addBtn').style.background='#0d6efd';
+        document.getElementById('addBtn').style.color     ='white';
+        document.getElementById('cancelBtn').style.display='inline-block';
+
+        document.querySelectorAll('#nutTableBody tr').forEach((r,idx)=>
+            r.classList.toggle('editing-row',idx===i));
+
+        window.scrollTo({top:0,behavior:'smooth'});
+        showToast(`✏️ Editing Row #${i+1} — ${n.name}. Make changes and click 💾 Save Changes.`, true);
+    }
+
+    // ── DELETE ────────────────────────────────────────────────────────────────
+    function deleteNut(i) {
+        if (confirm(`Delete nut: ${nuts[i].name}?`)) {
+            nuts.splice(i,1);
+            if (editIndex===i) { editIndex=null; clearInputs(); }
+            renderTable();
+            showToast(`🗑️ Nut deleted`);
+        }
+    }
+
+    function clearAll() {
+        if (confirm('⚠️ Delete ALL nuts? Cannot be undone!')) {
+            nuts=[]; editIndex=null;
+            renderTable(); clearInputs(); dismissDupBanner();
+            showToast('🗑️ All nuts cleared');
+        }
+    }
+
+    // ── RENDER TABLE ──────────────────────────────────────────────────────────
+    function renderTable() {
+        const tbody=document.getElementById('nutTableBody');
+        tbody.innerHTML='';
+        if (!nuts.length) {
+            const row=tbody.insertRow();
+            row.className='no-nuts-row';
+            row.insertCell(0).colSpan=14;
+            row.cells[0].textContent='No nuts added yet — fill the form above and click ➕ Add Nut';
+            document.getElementById('nutCount').textContent='0';
+            return;
+        }
+        nuts.forEach((n,i)=>{
+            const row=tbody.insertRow();
+            [i+1, n.diameter, n.din, n.name, n.grade||'8',
+             n.p1, n.p2, n.p3, n.p4, n.p5, n.p6, n.type, n.weight
+            ].forEach((v,col)=>{ row.insertCell(col).textContent=v; });
+            row.insertCell(13).innerHTML=
+                `<button class="edit-btn"   onclick="editNut(${i})">✏️ Edit</button>
+                 <button class="delete-btn" onclick="deleteNut(${i})">🗑️ Del</button>`;
+        });
+        document.getElementById('nutCount').textContent=nuts.length;
+    }
+
+    // ── CLEAR FORM ────────────────────────────────────────────────────────────
+    function clearInputs() {
+        document.getElementById('diameter').value      ='';
+        document.getElementById('din').value           ='934';
+        document.getElementById('p6').value            ='0';
+        document.getElementById('grade').value         ='8';
+        document.getElementById('customGradeDiv').style.display='none';
+        document.getElementById('customGrade').value   ='';
+        document.getElementById('autoName').checked    =true;
+        document.getElementById('customName').value    ='';
+        document.getElementById('customName').readOnly =true;
+        document.getElementById('formTitle').textContent='➕ Add New Nut';
+        document.getElementById('addBtn').textContent  ='➕ Add Nut';
+        document.getElementById('addBtn').style.background='#007bff';
+        document.getElementById('addBtn').style.color  ='white';
+        document.getElementById('cancelBtn').style.display='none';
+        editIndex=null;
+        updateAutoName();
+        ['diameter','din'].forEach(id=>
+            document.getElementById(id).classList.remove('field-valid','field-invalid','field-warn','field-dup'));
+        ['hint-diameter','hint-din'].forEach(id=>
+            document.getElementById(id).textContent='');
+        ['icon-diameter','icon-din'].forEach(id=>
+            document.getElementById(id).textContent='');
+        if (!document.getElementById('manualMode').checked)
+            ['p1','p2','p3','p4','p5','weight'].forEach(id=>document.getElementById(id).value='');
+        document.querySelectorAll('#nutTableBody tr').forEach(r=>
+            r.classList.remove('editing-row','duplicate-row'));
+    }
+
+    // ── EXPORT ────────────────────────────────────────────────────────────────
+    function exportJSON(fileType) {
+        if (!nuts.length) { alert('No nuts to export!'); return; }
+
+        // Tekla's internal parser strictly requires the root array to be "Bolts"
+        // and expects the exact p1-p6 format as provided in the sample.
+        const exportData = nuts.map(n => ({
+            diameter: n.diameter,
+            din: n.din,
+            length: 0, // Nuts have 0 length in catalog
+            name: n.name,
+            p1: n.p1,
+            p2: n.p2,
+            p3: n.p3,
+            p4: n.p4,
+            p5: n.p5,
+            p6: n.p6,
+            type: n.type, // Will always be 101
+            weight: n.weight
+        }));
+
+        // CRITICAL FIX: Root object key must be "Bolts"
+        const json = JSON.stringify({ Bolts: exportData }, null, 2);
+
+        // Ensure Tekla export explicitly uses the .bolts extension
+        const ext  = fileType === 'tekla' ? '.bolts' : '.json';
+        const fname = (fileType === 'tekla' ? 'tekla_nuts_' : 'nuts_')
+                    + new Date().toISOString().slice(0,19).replace(/:/g,'-');
+
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([json], {type:'application/json'}));
+        a.download = fname + ext;
+        a.click();
+        URL.revokeObjectURL(a.href);
+
+        showToast(`✅ Exported ${nuts.length} nut(s) → ${fname}${ext}`);
+    }
+
+    // ── INIT ──────────────────────────────────────────────────────────────────
+    toggleManualMode();
+    updateAutoName();
+    validateStandard();
+</script>
+</body>
+</html>
