@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Bolt Manager - Tekla Structures Ready</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1400px; margin: 20px auto; padding: 0 20px; }
+        .input-area { background: #f0f0f0; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .input-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; align-items: flex-start; }
+        .input-group { display: flex; align-items: flex-start; gap: 5px; }
+        .input-group label { font-weight: bold; min-width: 140px; padding-top: 6px; }
+        .input-group input { width: 90px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+        .input-group-small label { min-width: 90px; }
+        .input-group-small input { width: 70px; }
+        button { background: #007bff; color: white; border: none; padding: 8px 16px; margin: 5px; cursor: pointer; border-radius: 4px; font-size: 14px; }
+        button:hover { opacity: 0.8; }
+        .delete-btn  { background: #dc3545; }
+        .edit-btn    { background: #ffc107; color: black; }
+        .export-btn  { background: #28a745; font-size: 15px; padding: 10px 20px; }
+        .tekla-export{ background: #6f42c1; }
+        .clear-btn   { background: #6c757d; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 7px 8px; text-align: left; font-size: 12px; }
+        th { background: #007bff; color: white; position: sticky; top: 0; z-index: 1; white-space: nowrap; }
+        td { white-space: nowrap; }
+        .status { margin: 10px 0; padding: 10px; background: #e9ecef; border-radius: 4px; display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
+        .formula-badge { background: #28a745; color: white; padding: 2px 7px; border-radius: 12px; font-size: 11px; margin-left: 4px; white-space: nowrap; }
+        .bolt-count { font-size: 20px; font-weight: bold; color: #007bff; }
+        .table-container { max-height: 420px; overflow-y: auto; border: 2px solid #007bff; border-radius: 4px; }
+        .checkbox-group { display: flex; align-items: center; gap: 15px; margin-top: 10px; flex-wrap: wrap; }
+        .export-group { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+        .info-box  { background: #e7f3ff; border-left: 4px solid #007bff; padding: 10px; margin: 10px 0; font-size: 12px; }
+        .warn-box  { background: #fff8e1; border-left: 4px solid #ffc107; padding: 10px; margin: 10px 0; font-size: 12px; }
+        .sample-box{ background: #f8f9fa; border: 1px solid #dee2e6; padding: 10px; margin: 10px 0; font-family: monospace; font-size: 11px; overflow-x: auto; }
+        select { padding: 6px; border-radius: 4px; border: 1px solid #ccc; }
+        .grade-custom { display: flex; gap: 5px; align-items: center; }
+        .tooltip { cursor: help; border-bottom: 1px dotted #999; }
+        .legend { background: white; padding: 12px; border-radius: 5px; margin-bottom: 10px; border: 1px solid #ddd; }
+        .legend h4 { margin: 0 0 8px 0; font-size: 13px; color: #333; }
+        .legend table { margin-top: 8px; font-size: 11px; }
+        .legend th { background: #495057; font-size: 11px; padding: 4px 8px; }
+        .legend td { padding: 3px 8px; white-space: normal; }
+        .legend tr:nth-child(even) td { background: #f8f9fa; }
+        .legend tr.sg td { background: #e8f5e9; }
+        .legend tr.sm td { background: #fff3e0; }
+        .legend tr.sl td { background: #e3f2fd; }
+        h1 { color: #333; }
+
+        /* ── Validation ── */
+        .field-valid   { border: 2px solid #28a745 !important; background: #f6fff8 !important; }
+        .field-invalid { border: 2px solid #dc3545 !important; background: #fff5f5 !important; }
+        .field-warn    { border: 2px solid #ffc107 !important; background: #fffdf0 !important; }
+        .field-dup     { border: 2px solid #fd7e14 !important; background: #fff4ec !important; }
+        .hint { font-size: 10px; margin-top: 2px; display: block; min-height: 13px; }
+        .hint-ok    { color: #28a745; }
+        .hint-error { color: #dc3545; }
+        .hint-warn  { color: #e67e00; }
+        .hint-dup   { color: #c94a00; font-weight: bold; }
+        .input-wrap { display: flex; flex-direction: column; }
+        .valid-icon { font-size: 14px; padding-top: 4px; }
+
+        /* ── Duplicate banner ── */
+        .dup-banner {
+            display: none; background: #fff4ec;
+            border: 2px solid #fd7e14; border-radius: 6px;
+            padding: 10px 14px; margin: 8px 0; font-size: 13px; color: #7c3700;
+        }
+        .dup-banner strong { color: #c94a00; }
+        .dup-banner .dup-actions { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+        /* ── Toast notification ── */
+        #toast {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(80px);
+            background: #198754; color: white; padding: 12px 28px;
+            border-radius: 8px; font-size: 14px; font-weight: bold;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+            transition: transform 0.35s ease, opacity 0.35s ease;
+            opacity: 0; z-index: 9999; pointer-events: none; white-space: nowrap;
+        }
+        #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        #toast.toast-update { background: #0d6efd; }
+
+        /* ── Row highlights ── */
+        .editing-row   { background: #fff3cd !important; }
+        .duplicate-row { background: #fff0e6 !important; outline: 2px solid #fd7e14; }
+        .saved-flash   {
+            animation: flashGreen 1.8s ease forwards;
+        }
+        @keyframes flashGreen {
+            0%   { background: #d1e7dd; }
+            30%  { background: #a3cfbb; }
+            100% { background: transparent; }
+        }
+        .no-bolts-row td { text-align: center; color: #888; font-style: italic; padding: 20px; }
+
+        /* ── Standard tags ── */
+        .std-tag  { display:inline-block; padding:1px 5px; border-radius:3px; font-size:10px; margin-left:4px; }
+        .std-din  { background:#cfe2ff; color:#084298; }
+        .std-iso  { background:#d1e7dd; color:#0a3622; }
+        .std-bs   { background:#f8d7da; color:#58151c; }
+        .std-en   { background:#fff3cd; color:#664d03; }
+        .std-astm { background:#e2d9f3; color:#3d0a91; }
+        .std-as   { background:#d2f4ea; color:#0a3622; }
+        .std-jis  { background:#fde9d9; color:#7c3700; }
+        .std-other{ background:#e2e3e5; color:#383d41; }
+    </style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<h1>🔩 Bolt Manager — Tekla Structures Ready</h1>
+<p>✅ DIN / ISO / BS / EN / ASTM / AS / JIS | M1.6 → M64 | ✏️ Edit Mode | 📤 Tekla JSON Export</p>
+
+<div class="legend">
+    <h4>📖 DIN 933 / ISO 4017 Full Reference Table — M1.6 to M64</h4>
+    <table>
+        <thead>
+            <tr>
+                <th>Size</th><th>p1 — Head Height k (mm)</th>
+                <th>p4 — Wrench Size s (mm)</th><th>p5 — Across Corners e (mm)</th>
+                <th>p2 DIN 933 / ISO 4017</th><th>p2 DIN 931 / ISO 4014 formula</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="sg"><td>M1.6</td><td>1.1</td><td>3.2</td><td>3.7</td><td>= bolt length</td>
+                <td rowspan="28" style="vertical-align:middle;text-align:center;font-size:11px;">
+                    L ≤ 125 → <strong>2d + 6</strong><br>
+                    125 &lt; L ≤ 200 → <strong>2d + 12</strong><br>
+                    L &gt; 200 → <strong>2d + 25</strong>
+                </td></tr>
+            <tr class="sg"><td>M2</td><td>1.4</td><td>4.0</td><td>4.6</td><td>= bolt length</td></tr>
+            <tr class="sg"><td>M2.5</td><td>1.7</td><td>5.0</td><td>5.8</td><td>= bolt length</td></tr>
+            <tr class="sg"><td>M3</td><td>2.0</td><td>5.5</td><td>6.4</td><td>= bolt length</td></tr>
+            <tr class="sg"><td>M4</td><td>2.8</td><td>7.0</td><td>8.1</td><td>= bolt length</td></tr>
+            <tr class="sg"><td>M5</td><td>3.5</td><td>8.0</td><td>9.2</td><td>= bolt length</td></tr>
+            <tr class="sg"><td>M6</td><td>4.0</td><td>10.0</td><td>11.5</td><td>= bolt length</td></tr>
+            <tr class="sg"><td>M8</td><td>5.3</td><td>13.0</td><td>15.0</td><td>= bolt length</td></tr>
+            <tr class="sm"><td>M10</td><td>6.4</td><td>16.0</td><td>18.5</td><td>= bolt length</td></tr>
+            <tr class="sm"><td>M12</td><td>7.5</td><td>18.0</td><td>20.8</td><td>= bolt length</td></tr>
+            <tr class="sm"><td>M14</td><td>8.8</td><td>21.0</td><td>24.2</td><td>= bolt length</td></tr>
+            <tr class="sm"><td>M16</td><td>10.0</td><td>24.0</td><td>27.7</td><td>= bolt length</td></tr>
+            <tr class="sm"><td>M18</td><td>11.5</td><td>27.0</td><td>31.2</td><td>= bolt length</td></tr>
+            <tr class="sm"><td>M20</td><td>12.5</td><td>30.0</td><td>34.6</td><td>= bolt length</td></tr>
+            <tr class="sm"><td>M22</td><td>14.0</td><td>34.0</td><td>39.3</td><td>= bolt length</td></tr>
+            <tr class="sm"><td>M24</td><td>15.0</td><td>36.0</td><td>41.6</td><td>= bolt length</td></tr>
+            <tr class="sm"><td>M27</td><td>17.0</td><td>41.0</td><td>47.3</td><td>= bolt length</td></tr>
+            <tr class="sl"><td>M30</td><td>18.7</td><td>46.0</td><td>53.1</td><td>= bolt length</td></tr>
+            <tr class="sl"><td>M33</td><td>21.0</td><td>50.0</td><td>57.7</td><td>= bolt length</td></tr>
+            <tr class="sl"><td>M36</td><td>22.5</td><td>55.0</td><td>63.5</td><td>= bolt length</td></tr>
+            <tr class="sl"><td>M39</td><td>25.0</td><td>60.0</td><td>69.3</td><td>= bolt length</td></tr>
+            <tr class="sl"><td>M42</td><td>26.0</td><td>65.0</td><td>75.1</td><td>= bolt length</td></tr>
+            <tr class="sl"><td>M45</td><td>28.0</td><td>70.0</td><td>80.8</td><td>= bolt length</td></tr>
+            <tr class="sl"><td>M48</td><td>30.0</td><td>75.0</td><td>86.6</td><td>= bolt length</td></tr>
+            <tr class="sl"><td>M52</td><td>33.0</td><td>80.0</td><td>92.4</td><td>= bolt length</td></tr>
+            <tr class="sl"><td>M56</td><td>35.0</td><td>85.0</td><td>98.1</td><td>= bolt length</td></tr>
+            <tr class="sl"><td>M60</td><td>38.0</td><td>90.0</td><td>104.0</td><td>= bolt length</td></tr>
+            <tr class="sl"><td>M64</td><td>40.0</td><td>95.0</td><td>109.7</td><td>= bolt length</td></tr>
+        </tbody>
+    </table>
+    <p style="margin-top:6px;font-size:11px;">
+        🟢 Small (M1.6–M8) | 🟠 Medium (M10–M27) | 🔵 Large (M30–M64) |
+        <strong>p5</strong> = e = s × 1.1547 |
+        <strong>Weight</strong> = (shank + hex head) × 7.85 g/cm³
+    </p>
+    <p style="font-size:11px;margin-top:4px;">
+        <strong>Accepted Standards:</strong>
+        <span class="std-tag std-din">DIN 933/931</span>
+        <span class="std-tag std-iso">ISO 4014/4017</span>
+        <span class="std-tag std-bs">BS 3692/4190</span>
+        <span class="std-tag std-en">EN 14399</span>
+        <span class="std-tag std-astm">ASTM A325/A490</span>
+        <span class="std-tag std-as">AS 1110/1111</span>
+        <span class="std-tag std-jis">JIS B1180</span>
+        <span class="std-tag std-other">+ any custom</span>
+    </p>
+</div>
+
+<div class="info-box">
+    💡 <strong>Quick Guide:</strong> Enter Diameter + Length → all fields auto-fill correctly for Tekla mapping.<br>
+    📌 <strong>Tekla Mapping:</strong> p1 (top thick), p2 (thread len), p3 (washer tol), p4 (span size), p5 (top diam), p6 (add. dist).<br>
+    🔁 <strong>Duplicate check</strong> — same Diameter + Standard + Length warns before saving.<br>
+    💾 <strong>Save Changes</strong> — edited row flashes green and table scrolls to it so you can confirm.
+</div>
+
+<div class="warn-box">
+    ⚠️ <strong>p5</strong> = circumscribed circle diameter e = s × 1.1547. Tekla uses this to draw the hex head.
+    M6: e=<strong>11.5</strong> | M20: e=<strong>34.6</strong> | M42: e=<strong>75.1 mm</strong>
+</div>
+
+<div class="dup-banner" id="dupBanner">
+    <strong>⚠️ Duplicate Detected!</strong>
+    <span id="dupMessage"></span>
+    <div class="dup-actions">
+        <button onclick="forceSaveDuplicate()" style="background:#fd7e14;">➕ Add Anyway</button>
+        <button onclick="jumpToExisting()"     style="background:#6c757d;">🔍 Jump to Existing</button>
+        <button onclick="dismissDupBanner()"   style="background:#aaa;color:#333;">✖ Dismiss</button>
+    </div>
+</div>
+
+<div class="input-area">
+    <h3 id="formTitle">➕ Add New Bolt</h3>
+
+    <div class="input-row">
+        <div class="input-group">
+            <label class="tooltip" title="Numeric diameter in mm — e.g. 6, 16, 42">📏 Diameter (mm):</label>
+            <div class="input-wrap">
+                <input type="number" id="diameter" step="0.5" min="1" max="300"
+                       oninput="validateDiameter(); checkDuplicate();"
+                       onchange="calculateStandardValues(); checkDuplicate();">
+                <span class="hint" id="hint-diameter"></span>
+            </div>
+            <span class="valid-icon" id="icon-diameter"></span>
+        </div>
+
+        <div class="input-group">
+            <label class="tooltip" title="DIN 933, ISO 4017, BS 3692, EN 14399, ASTM A325, AS 1110, JIS B1180 etc.">📄 Standard:</label>
+            <div class="input-wrap">
+                <input type="text" id="din" value="DIN 933" style="width:130px;text-transform:uppercase"
+                       oninput="validateStandard(); checkDuplicate();"
+                       onchange="calculateStandardValues(); checkDuplicate();"
+                       maxlength="20">
+                <span class="hint" id="hint-din"></span>
+            </div>
+            <span class="valid-icon" id="icon-din"></span>
+        </div>
+
+        <div class="input-group">
+            <label class="tooltip" title="Total bolt length in mm">📐 Length (mm):</label>
+            <div class="input-wrap">
+                <input type="number" id="length" step="1" min="1" max="3000"
+                       oninput="validateLength(); checkDuplicate();"
+                       onchange="calculateStandardValues(); checkDuplicate();">
+                <span class="hint" id="hint-length"></span>
+            </div>
+            <span class="valid-icon" id="icon-length"></span>
+        </div>
+
+        <div class="input-group">
+            <label class="tooltip" title="1=Hex, 2=Round/Socket, 3=Countersunk">🏷️ Type:</label>
+            <div class="input-wrap">
+                <input type="number" id="type" value="1" style="width:60px" min="1" max="3"
+                       oninput="validateType()">
+                <span class="hint" id="hint-type"></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="input-row">
+        <div class="input-group">
+            <label class="tooltip" title="Head height k (Tekla: top thick)">📏 p1 — Head Height k:</label>
+            <input type="number" id="p1" step="0.1" readonly style="background:#e8e8e8">
+            <span class="formula-badge">DIN Table</span>
+        </div>
+        <div class="input-group">
+            <label class="tooltip" title="Width across flats s (Tekla: span size)">🔧 p4 — Wrench Size s:</label>
+            <input type="number" id="p4" step="0.1" readonly style="background:#e8e8e8">
+            <span class="formula-badge">DIN Table</span>
+        </div>
+        <div class="input-group">
+            <label class="tooltip" title="Across corners e (Tekla: top diam)">🔘 p5 — Across Corners e:</label>
+            <input type="number" id="p5" step="0.1" readonly style="background:#e8e8e8">
+            <span class="formula-badge">s × 1.1547</span>
+        </div>
+    </div>
+
+    <div class="input-row">
+        <div class="input-group-small">
+            <label class="tooltip" title="Tekla: thread len">📐 p2 — Thread Len:</label>
+            <input type="number" id="p2" value="0" step="0.01">
+            <span class="formula-badge" id="p2Badge" style="display:none;">Full Thread</span>
+        </div>
+        <div class="input-group-small">
+            <label class="tooltip" title="Tekla: washer tol">📦 p3 — Wash Tol:</label>
+            <input type="number" id="p3" value="0" step="0.01">
+        </div>
+        <div class="input-group">
+            <label class="tooltip" title="Tekla: add. dist">➕ p6 — Add. Dist:</label>
+            <input type="number" id="p6" value="5" step="0.1">
+        </div>
+        <div class="input-group">
+            <label class="tooltip" title="Weight grams — (shank + head) × 7.85 g/cm³">⚖️ Weight (grams):</label>
+            <input type="number" id="weight" step="0.01" readonly style="background:#e8e8e8">
+            <span class="formula-badge">Auto</span>
+        </div>
+    </div>
+
+    <div class="input-row">
+        <div class="input-group">
+            <label class="tooltip" title="Material strength grade">🏭 Grade:</label>
+            <select id="grade" onchange="handleGradeChange()">
+                <option value="4.6">Grade 4.6 — Low strength</option>
+                <option value="8.8" selected>Grade 8.8 — Medium (standard)</option>
+                <option value="10.9">Grade 10.9 — High strength</option>
+                <option value="12.9">Grade 12.9 — Very high strength</option>
+                <option value="A325">ASTM A325</option>
+                <option value="A490">ASTM A490</option>
+                <option value="SS304">Stainless A2-70 (304)</option>
+                <option value="SS316">Stainless A4-80 (316)</option>
+                <option value="custom">✏️ Custom...</option>
+            </select>
+        </div>
+        <div class="grade-custom" id="customGradeDiv" style="display:none;">
+            <label>Custom:</label>
+            <input type="text" id="customGrade" placeholder="e.g. B7, HV, 10K"
+                   style="width:100px;text-transform:uppercase"
+                   oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div class="input-group">
+            <label class="tooltip" title="Bolt name for Tekla catalog">📝 Name:</label>
+            <input type="text" id="customName" placeholder="Auto-generated" style="width:200px">
+            <span class="formula-badge" id="nameStatus">Auto</span>
+        </div>
+    </div>
+
+    <div class="checkbox-group">
+        <label>
+            <input type="checkbox" id="autoName" checked onchange="toggleAutoName()">
+            Auto-generate Name &nbsp;<code style="font-size:11px;background:#ddd;padding:1px 4px;border-radius:3px;">M{dia}*{len}-{STD}</code>
+        </label>
+        <label>
+            <input type="checkbox" id="manualMode" onchange="toggleManualMode()">
+            ✏️ Manual Override (unlock formula fields)
+        </label>
+    </div>
+
+    <div style="margin-top:15px;">
+        <button onclick="addBolt()"    id="addBtn">➕ Add Bolt</button>
+        <button onclick="cancelEdit()" id="cancelBtn" class="clear-btn" style="display:none;">✖ Cancel Edit</button>
+        <button onclick="clearInputs()" class="clear-btn">🗑️ Clear Form</button>
+    </div>
+</div>
+
+<div class="status">
+    <span>📊 Total Bolts:</span>
+    <span id="boltCount" class="bolt-count">0</span>
+    <button onclick="clearAll()" class="clear-btn">🗑️ Clear All</button>
+</div>
+
+<div class="table-container" id="tableContainer">
+    <table id="boltTable">
+        <thead>
+            <tr>
+                <th>#</th><th>Diameter</th><th>Standard</th><th>Length</th>
+                <th>Name</th><th>Grade</th>
+                <th>p1 Head k</th><th>p4 Wrench s</th><th>p5 Corners e</th>
+                <th>p6 Add. Dist</th><th>p2 Thread b</th><th>p3 Wash Tol</th><th>Type</th>
+                <th>Weight (g)</th><th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="boltTableBody">
+            <tr class="no-bolts-row">
+                <td colspan="15">No bolts added yet — fill the form above and click ➕ Add Bolt</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="export-group">
+    <button class="export-btn" onclick="exportJSON('json')">📤 Export JSON (.json)</button>
+    <button class="export-btn tekla-export" onclick="exportJSON('bolts')">🏗️ Export Tekla (.bolts)</button>
+    <button class="export-btn" onclick="exportCSV()">📊 Export CSV (Excel)</button>
+</div>
+
+<div class="sample-box">
+    <strong>📋 Sample — M6 × 30, DIN 933:</strong><br>
+    { "diameter":6, "din":"DIN 933", "length":30, "name":"M6*30-DIN 933",
+      "p1":4, "p2":30, "p3":0, "p4":10, "p5":11.5, "p6":5, "type":1, "weight":6.8, "grade":"8.8" }<br><br>
+    <strong>📋 Sample — M42 × 150, ISO 4017:</strong><br>
+    { "diameter":42, "din":"ISO 4017", "length":150, "name":"M42*150-ISO 4017",
+      "p1":26, "p2":150, "p3":0, "p4":65, "p5":75.1, "p6":5, "type":1, "weight":2345, "grade":"8.8" }
+</div>
+
+<script>
+    let bolts = [];
+    let editIndex        = null;
+    let pendingDupBolt   = null;
+    let dupExistingIndex = null;
+
+    const VALID_DIAMETERS      = [1.6,2,2.5,3,4,5,6,8,10,12,14,16,18,20,22,24,27,30,33,36,39,42,45,48,52,56,60,64];
+    const FULL_THREAD_KEYWORDS = ['933','4017','1083','558','6921','A307','A394','BS 1083'];
+
+    // ── TOAST ────────────────────────────────────────────────────────────────────
+    let toastTimer;
+    function showToast(msg, isUpdate) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className   = 'show' + (isUpdate ? ' toast-update' : '');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => { t.className = ''; }, 3000);
+    }
+
+    // ── FLASH ROW (green) + SCROLL ────────────────────────────────────────────
+    function flashRow(index) {
+        setTimeout(() => {
+            const rows = document.querySelectorAll('#boltTableBody tr');
+            if (!rows[index]) return;
+            const row = rows[index];
+            row.classList.remove('saved-flash');
+            void row.offsetWidth;
+            row.classList.add('saved-flash');
+            const container = document.getElementById('tableContainer');
+            const rowTop    = row.offsetTop;
+            container.scrollTo({ top: rowTop - 40, behavior: 'smooth' });
+        }, 50);
+    }
+
+    // ── DUPLICATE CHECK ───────────────────────────────────────────────────────
+    function findDuplicate(diameter, std, length, skipIndex) {
+        return bolts.findIndex((b, i) => {
+            if (i === skipIndex) return false;
+            return b.diameter === diameter &&
+                   b.din.toUpperCase() === std.toUpperCase() &&
+                   b.length === length;
+        });
+    }
+
+    function checkDuplicate() {
+        const d   = parseFloat(document.getElementById('diameter').value);
+        const std = document.getElementById('din').value.trim();
+        const L   = parseFloat(document.getElementById('length').value);
+        if (isNaN(d) || isNaN(L) || !std) { dismissDupBanner(); return; }
+
+        const idx = findDuplicate(d, std, L, editIndex);
+        if (idx !== -1) {
+            ['diameter','din','length'].forEach(id => {
+                const el = document.getElementById(id);
+                el.classList.remove('field-valid','field-invalid','field-warn');
+                el.classList.add('field-dup');
+            });
+            document.getElementById('hint-diameter').textContent = '⚠ Duplicate!';
+            document.getElementById('hint-diameter').className   = 'hint hint-dup';
+            document.getElementById('hint-din').textContent      = '⚠ Duplicate!';
+            document.getElementById('hint-din').className        = 'hint hint-dup';
+            document.getElementById('hint-length').textContent   = '⚠ Duplicate!';
+            document.getElementById('hint-length').className     = 'hint hint-dup';
+        } else {
+            dismissDupBanner();
+            validateDiameter(); validateStandard(); validateLength();
+        }
+    }
+
+    function showDupBanner(d, std, L, bolt, existIdx) {
+        pendingDupBolt   = bolt;
+        dupExistingIndex = existIdx;
+        const ex = bolts[existIdx];
+        document.getElementById('dupMessage').innerHTML =
+            ` A bolt <strong>M${d} × ${L} ${std}</strong> already exists at row
+              <strong>#${existIdx+1}</strong> (${ex.name}, Grade ${ex.grade}). What would you like to do?`;
+        document.getElementById('dupBanner').style.display = 'block';
+        document.getElementById('dupBanner').scrollIntoView({ behavior:'smooth', block:'center' });
+        document.querySelectorAll('#boltTableBody tr').forEach((r,i) =>
+            r.classList.toggle('duplicate-row', i === existIdx));
+    }
+
+    function forceSaveDuplicate() {
+        if (!pendingDupBolt) return;
+        let savedIndex;
+        if (editIndex !== null) {
+            savedIndex = editIndex;
+            bolts[editIndex] = pendingDupBolt;
+            editIndex = null;
+        } else {
+            bolts.push(pendingDupBolt);
+            savedIndex = bolts.length - 1;
+        }
+        pendingDupBolt = null; dupExistingIndex = null;
+        renderTable();
+        clearInputs();
+        dismissDupBanner();
+        flashRow(savedIndex);
+        showToast(`✅ Saved (duplicate allowed) — ${bolts[savedIndex].name}`, true);
+    }
+
+    function jumpToExisting() {
+        if (dupExistingIndex === null) return;
+        const rows = document.querySelectorAll('#boltTableBody tr');
+        if (rows[dupExistingIndex]) {
+            rows[dupExistingIndex].scrollIntoView({ behavior:'smooth', block:'center' });
+            rows[dupExistingIndex].style.outline = '3px solid #fd7e14';
+            setTimeout(() => rows[dupExistingIndex].style.outline = '', 2500);
+        }
+        dismissDupBanner();
+    }
+
+    function dismissDupBanner() {
+        document.getElementById('dupBanner').style.display = 'none';
+        pendingDupBolt = null; dupExistingIndex = null;
+        document.querySelectorAll('#boltTableBody tr').forEach(r => r.classList.remove('duplicate-row'));
+        ['diameter','din','length'].forEach(id => document.getElementById(id).classList.remove('field-dup'));
+    }
+
+    // ── VALIDATION ────────────────────────────────────────────────────────────
+    function setField(inputId, hintId, iconId, state, msg) {
+        const el   = document.getElementById(inputId);
+        const hint = document.getElementById(hintId);
+        const icon = iconId ? document.getElementById(iconId) : null;
+        el.classList.remove('field-valid','field-invalid','field-warn','field-dup');
+        if (state==='ok')    { el.classList.add('field-valid');   if(icon) icon.textContent='✅'; }
+        if (state==='error') { el.classList.add('field-invalid'); if(icon) icon.textContent='❌'; }
+        if (state==='warn')  { el.classList.add('field-warn');    if(icon) icon.textContent='⚠️'; }
+        if (state==='')      { if(icon) icon.textContent=''; }
+        if (hint) { hint.textContent=msg; hint.className='hint'+(state?' hint-'+state:''); }
+    }
+
+    function validateDiameter() {
+        const raw = document.getElementById('diameter').value;
+        if (!raw) { setField('diameter','hint-diameter','icon-diameter','',''); return false; }
+        const val = parseFloat(raw);
+        if (isNaN(val)||val<=0) { setField('diameter','hint-diameter','icon-diameter','error','Must be a positive number'); return false; }
+        if (val>300)            { setField('diameter','hint-diameter','icon-diameter','error','Max 300 mm'); return false; }
+        if (VALID_DIAMETERS.includes(val)) {
+            setField('diameter','hint-diameter','icon-diameter','ok',`Standard M${val} — DIN/ISO table loaded`);
+        } else {
+            setField('diameter','hint-diameter','icon-diameter','warn','Non-standard size — fallback formula used');
+        }
+        return true;
+    }
+
+    function validateStandard() {
+        const el  = document.getElementById('din');
+        const pos = el.selectionStart;
+        el.value  = el.value.toUpperCase();
+        try { el.setSelectionRange(pos,pos); } catch(e){}
+        const val = el.value.trim();
+        if (!val) { setField('din','hint-din','icon-din','error','Standard required (e.g. DIN 933, ISO 4017)'); return false; }
+        const fam = getStdFamily(val);
+        const famLabels = { din:'DIN standard', iso:'ISO standard', bs:'British Standard',
+                            en:'Euro Norm', astm:'ASTM standard', as:'Australian Standard',
+                            jis:'JIS standard', other:'Custom standard' };
+        const ttype = isFullyThreaded(val) ? 'fully threaded' : 'partial thread formula applied';
+        setField('din','hint-din','icon-din','ok',`✓ ${famLabels[fam]} — ${ttype}`);
+        document.getElementById('p2Badge').textContent = isFullyThreaded(val) ? 'Full Thread' : 'Partial Formula';
+        document.getElementById('p2Badge').style.display = 'inline-block';
+        return true;
+    }
+
+    function validateLength() {
+        const raw = document.getElementById('length').value;
+        if (!raw) { setField('length','hint-length','icon-length','',''); return false; }
+        const val = parseFloat(raw);
+        const dia = parseFloat(document.getElementById('diameter').value);
+        if (isNaN(val)||val<=0) { setField('length','hint-length','icon-length','error','Must be a positive number'); return false; }
+        if (val>3000)           { setField('length','hint-length','icon-length','error','Max 3000 mm'); return false; }
+        if (!isNaN(dia)&&val<dia*0.5) { setField('length','hint-length','icon-length','warn',`⚠ Very short for M${dia}`); return true; }
+        setField('length','hint-length','icon-length','ok',`✓ ${val} mm`);
+        return true;
+    }
+
+    function validateType() {
+        const val = parseInt(document.getElementById('type').value);
+        const names = {1:'Hex head', 2:'Round/Socket head', 3:'Countersunk head'};
+        if (isNaN(val)||val<1||val>3) { setField('type','hint-type',null,'error','1–3 only'); return false; }
+        setField('type','hint-type',null,'ok',`✓ ${names[val]}`);
+        return true;
+    }
+
+    function validateAll() {
+        const ok = validateDiameter() & validateStandard() & validateLength() & validateType();
+        if (!ok) {
+            const err = document.querySelector('.field-invalid');
+            if (err) err.scrollIntoView({ behavior:'smooth', block:'center' });
+        }
+        return !!ok;
+    }
+
+    // ── STANDARD HELPERS ─────────────────────────────────────────────────────
+    function getStdFamily(val) {
+        const v = val.toUpperCase();
+        if (/^DIN/.test(v))        return 'din';
+        if (/^ISO/.test(v))        return 'iso';
+        if (/^BS/.test(v))         return 'bs';
+        if (/^EN/.test(v))         return 'en';
+        if (/^ASTM|^A\d/.test(v))  return 'astm';
+        if (/^AS\b/.test(v))       return 'as';
+        if (/^JIS/.test(v))        return 'jis';
+        return 'other';
+    }
+
+    function isFullyThreaded(stdVal) {
+        const v = stdVal.toUpperCase();
+        return FULL_THREAD_KEYWORDS.some(k => v.includes(k));
+    }
+
+    // ── DIN / ISO LOOKUP TABLES ───────────────────────────────────────────────
+    function getStandardHeadHeight(d) {
+        const k = { 1.6:1.1,2:1.4,2.5:1.7,3:2.0,4:2.8,5:3.5,6:4.0,8:5.3,
+                    10:6.4,12:7.5,14:8.8,16:10.0,18:11.5,20:12.5,22:14.0,24:15.0,27:17.0,
+                    30:18.7,33:21.0,36:22.5,39:25.0,42:26.0,45:28.0,
+                    48:30.0,52:33.0,56:35.0,60:38.0,64:40.0 };
+        return k[d]!==undefined ? k[d] : parseFloat((d*0.64).toFixed(2));
+    }
+
+    function getStandardWrenchSize(d) {
+        const s = { 1.6:3.2,2:4.0,2.5:5.0,3:5.5,4:7.0,5:8.0,6:10.0,8:13.0,
+                    10:16.0,12:18.0,14:21.0,16:24.0,18:27.0,20:30.0,22:34.0,24:36.0,27:41.0,
+                    30:46.0,33:50.0,36:55.0,39:60.0,42:65.0,45:70.0,
+                    48:75.0,52:80.0,56:85.0,60:90.0,64:95.0 };
+        return s[d]!==undefined ? s[d] : parseFloat((d*1.5).toFixed(2));
+    }
+
+    function getAcrossCorners(d) { return parseFloat((getStandardWrenchSize(d)*1.1547).toFixed(1)); }
+
+    function getThreadLength(d, L, std) {
+        if (isFullyThreaded(std)) return L;
+        let b;
+        if (L<=125)      b=2*d+6;
+        else if (L<=200) b=2*d+12;
+        else             b=2*d+25;
+        return parseFloat(Math.min(b,L).toFixed(1));
+    }
+
+    function getWeight(d, L, k, s) {
+        const dc=d/10,Lc=L/10,kc=k/10,sc=s/10;
+        const shank = Math.PI*Math.pow(dc/2,2)*Lc;
+        const a=sc/Math.sqrt(3);
+        const head=(3*Math.sqrt(3)/2)*a*a*kc;
+        return parseFloat(((shank+head)*7.85).toFixed(2));
+    }
+
+    // ── AUTO NAME ─────────────────────────────────────────────────────────────
+    function updateAutoName() {
+        const d=document.getElementById('diameter').value;
+        const L=document.getElementById('length').value;
+        const std=document.getElementById('din').value;
+        const auto=document.getElementById('autoName').checked;
+        if (auto&&d&&L&&std) {
+            document.getElementById('customName').value=`M${d}*${L}-${std}`;
+            document.getElementById('customName').readOnly=true;
+            document.getElementById('nameStatus').textContent='Auto';
+        } else {
+            document.getElementById('customName').readOnly=false;
+            document.getElementById('nameStatus').textContent='Manual';
+        }
+    }
+    function toggleAutoName() { updateAutoName(); }
+
+    function handleGradeChange() {
+        const isCustom=document.getElementById('grade').value==='custom';
+        document.getElementById('customGradeDiv').style.display=isCustom?'flex':'none';
+        if (isCustom) document.getElementById('customGrade').focus();
+    }
+
+    function getSelectedGrade() {
+        const v=document.getElementById('grade').value;
+        return v==='custom'?(document.getElementById('customGrade').value.trim()||'Custom'):v;
+    }
+
+    // ── CALCULATE ─────────────────────────────────────────────────────────────
+    function calculateStandardValues() {
+        const d=parseFloat(document.getElementById('diameter').value);
+        const L=parseFloat(document.getElementById('length').value);
+        const std=document.getElementById('din').value;
+        const manual=document.getElementById('manualMode').checked;
+        if (!manual&&!isNaN(d)&&d>0) {
+            const k=getStandardHeadHeight(d);
+            const s=getStandardWrenchSize(d);
+            document.getElementById('p1').value=k;
+            document.getElementById('p4').value=s;
+            document.getElementById('p5').value=getAcrossCorners(d);
+            document.getElementById('p2Badge').textContent=isFullyThreaded(std)?'Full Thread':'Partial Formula';
+            document.getElementById('p2Badge').style.display='inline-block';
+            if (!isNaN(L)&&L>0) {
+                document.getElementById('p2').value=getThreadLength(d,L,std);
+                document.getElementById('weight').value=getWeight(d,L,k,s);
+            }
+        }
+        updateAutoName();
+    }
+
+    function toggleManualMode() {
+        const manual=document.getElementById('manualMode').checked;
+        ['p1','p2','p4','p5','weight'].forEach(id=>{
+            const el=document.getElementById(id);
+            el.readOnly=!manual;
+            el.style.background=manual?'#fff':'#e8e8e8';
+        });
+        if (!manual) calculateStandardValues();
+    }
+
+    // ── ADD / SAVE ────────────────────────────────────────────────────────────
+    function addBolt() {
+        if (!validateAll()) return;
+        dismissDupBanner();
+
+        const d    =parseFloat(document.getElementById('diameter').value);
+        const std  =document.getElementById('din').value.trim();
+        const L    =parseFloat(document.getElementById('length').value);
+        const type =parseInt(document.getElementById('type').value)||1;
+        const grade=getSelectedGrade();
+        const manual=document.getElementById('manualMode').checked;
+
+        let p1,p2,p4,p5,weight;
+        if (manual) {
+            p1    =parseFloat(document.getElementById('p1').value)||0;
+            p2    =parseFloat(document.getElementById('p2').value)||0;
+            p4    =parseFloat(document.getElementById('p4').value)||0;
+            p5    =parseFloat(document.getElementById('p5').value)||0;
+            weight=parseFloat(document.getElementById('weight').value)||0;
+        } else {
+            p1=getStandardHeadHeight(d); 
+            p4=getStandardWrenchSize(d);
+            p5=getAcrossCorners(d);
+            p2=getThreadLength(d,L,std); 
+            weight=getWeight(d,L,p1,p4);
+        }
+
+        const name=document.getElementById('autoName').checked
+            ?`M${d}*${L}-${std}`
+            :(document.getElementById('customName').value.trim()||`M${d}*${L}-${std}`);
+
+        const bolt={
+            diameter:d,din:std,length:L,name,p1,
+            p2:p2,
+            p3:parseFloat(document.getElementById('p3').value)||0,
+            p4,p5,
+            p6:parseFloat(document.getElementById('p6').value)||0,
+            type,weight,grade
+        };
+
+        // Duplicate check
+        const dupIdx=findDuplicate(d,std,L,editIndex);
+        if (dupIdx!==-1) {
+            pendingDupBolt=bolt;
+            showDupBanner(d,std,L,bolt,dupIdx);
+            return;
+        }
+
+        let savedIndex;
+        if (editIndex!==null) {
+            savedIndex=editIndex;
+            bolts[editIndex]=bolt;       // ← UPDATE the existing entry
+            editIndex=null;
+            renderTable();
+            clearInputs();
+            flashRow(savedIndex);        // ← green flash on the updated row
+            showToast(`💾 Row #${savedIndex+1} updated — ${bolt.name}`, true);
+        } else {
+            bolts.push(bolt);
+            savedIndex=bolts.length-1;
+            renderTable();
+            clearInputs();
+            flashRow(savedIndex);
+            showToast(`✅ Bolt added — ${bolt.name}`);
+        }
+    }
+
+    function cancelEdit() { editIndex=null; dismissDupBanner(); clearInputs(); }
+
+    // ── EDIT ──────────────────────────────────────────────────────────────────
+    function editBolt(i) {
+        const b=bolts[i];
+        document.getElementById('diameter').value  =b.diameter;
+        document.getElementById('din').value       =b.din;
+        document.getElementById('length').value    =b.length;
+        document.getElementById('p1').value        =b.p1;
+        document.getElementById('p2').value        =b.p2;
+        document.getElementById('p3').value        =b.p3;
+        document.getElementById('p4').value        =b.p4;
+        document.getElementById('p5').value        =b.p5;
+        document.getElementById('p6').value        =b.p6;
+        document.getElementById('type').value      =b.type;
+        document.getElementById('weight').value    =b.weight;
+        
+        // This is the fix! Check if the name matches the expected auto-pattern.
+        // If it does, keep autoName checked. If they renamed it manually, uncheck it.
+        const expectedAutoName = `M${b.diameter}*${b.length}-${b.din}`;
+        document.getElementById('autoName').checked = (b.name === expectedAutoName);
+        document.getElementById('customName').value = b.name;
+        
+        updateAutoName();
+        validateDiameter(); validateStandard(); validateLength(); validateType();
+
+        const stdGrades=['4.6','8.8','10.9','12.9','A325','A490','SS304','SS316'];
+        if (stdGrades.includes(b.grade)) {
+            document.getElementById('grade').value=b.grade;
+            document.getElementById('customGradeDiv').style.display='none';
+        } else {
+            document.getElementById('grade').value='custom';
+            document.getElementById('customGradeDiv').style.display='flex';
+            document.getElementById('customGrade').value=b.grade;
+        }
+
+        editIndex=i;
+        document.getElementById('formTitle').textContent  =`✏️ Editing Bolt #${i+1} — ${b.name}`;
+        document.getElementById('addBtn').textContent     ='💾 Save Changes';
+        document.getElementById('addBtn').style.background='#0d6efd';
+        document.getElementById('addBtn').style.color     ='white';
+        document.getElementById('cancelBtn').style.display='inline-block';
+
+        document.querySelectorAll('#boltTableBody tr').forEach((r,idx)=>
+            r.classList.toggle('editing-row',idx===i));
+
+        window.scrollTo({top:0,behavior:'smooth'});
+        showToast(`✏️ Editing Row #${i+1} — ${b.name}. Make changes and click 💾 Save Changes.`, true);
+    }
+
+    // ── DELETE ────────────────────────────────────────────────────────────────
+    function deleteBolt(i) {
+        if (confirm(`Delete bolt: ${bolts[i].name}?`)) {
+            bolts.splice(i,1);
+            if (editIndex===i) { editIndex=null; clearInputs(); }
+            renderTable();
+            showToast(`🗑️ Bolt deleted`);
+        }
+    }
+
+    function clearAll() {
+        if (confirm('⚠️ Delete ALL bolts? Cannot be undone!')) {
+            bolts=[]; editIndex=null;
+            renderTable(); clearInputs(); dismissDupBanner();
+            showToast('🗑️ All bolts cleared');
+        }
+    }
+
+    // ── RENDER TABLE ──────────────────────────────────────────────────────────
+    function renderTable() {
+        const tbody=document.getElementById('boltTableBody');
+        tbody.innerHTML='';
+        if (!bolts.length) {
+            const row=tbody.insertRow();
+            row.className='no-bolts-row';
+            row.insertCell(0).colSpan=15;
+            row.cells[0].textContent='No bolts added yet — fill the form above and click ➕ Add Bolt';
+            document.getElementById('boltCount').textContent='0';
+            return;
+        }
+        bolts.forEach((b,i)=>{
+            const row=tbody.insertRow();
+            [i+1,b.diameter,b.din,b.length,b.name,b.grade||'8.8',
+             b.p1,b.p4,b.p5,b.p6,b.p2,b.p3,b.type,b.weight
+            ].forEach((v,col)=>{ row.insertCell(col).textContent=v; });
+            row.insertCell(14).innerHTML=
+                `<button class="edit-btn"   onclick="editBolt(${i})">✏️ Edit</button>
+                 <button class="delete-btn" onclick="deleteBolt(${i})">🗑️ Del</button>`;
+        });
+        document.getElementById('boltCount').textContent=bolts.length;
+    }
+
+    // ── CLEAR FORM ────────────────────────────────────────────────────────────
+    function clearInputs() {
+        ['diameter','length'].forEach(id=>document.getElementById(id).value='');
+        document.getElementById('din').value           ='DIN 933';
+        document.getElementById('p2').value            ='0';
+        document.getElementById('p3').value            ='0';
+        document.getElementById('p6').value            ='5';
+        document.getElementById('type').value          ='1';
+        document.getElementById('grade').value         ='8.8';
+        document.getElementById('customGradeDiv').style.display='none';
+        document.getElementById('customGrade').value   ='';
+        document.getElementById('autoName').checked    =true;
+        document.getElementById('customName').value    ='';
+        document.getElementById('customName').readOnly =true;
+        document.getElementById('p2Badge').textContent ='Full Thread';
+        document.getElementById('formTitle').textContent='➕ Add New Bolt';
+        document.getElementById('addBtn').textContent  ='➕ Add Bolt';
+        document.getElementById('addBtn').style.background='#007bff';
+        document.getElementById('addBtn').style.color  ='white';
+        document.getElementById('cancelBtn').style.display='none';
+        editIndex=null;
+        updateAutoName();
+        ['diameter','din','length','type'].forEach(id=>
+            document.getElementById(id).classList.remove('field-valid','field-invalid','field-warn','field-dup'));
+        ['hint-diameter','hint-din','hint-length','hint-type'].forEach(id=>
+            document.getElementById(id).textContent='');
+        ['icon-diameter','icon-din','icon-length'].forEach(id=>
+            document.getElementById(id).textContent='');
+        if (!document.getElementById('manualMode').checked)
+            ['p1','p2','p4','p5','weight'].forEach(id=>document.getElementById(id).value='');
+        document.querySelectorAll('#boltTableBody tr').forEach(r=>
+            r.classList.remove('editing-row','duplicate-row'));
+    }
+
+    // ── EXPORT ────────────────────────────────────────────────────────────────
+    function exportJSON(fileType) {
+        if (!bolts.length) { alert('No bolts to export!'); return; }
+        const json =JSON.stringify({Bolts:bolts},null,2);
+        const ext  =fileType==='bolts'?'.bolts':'.json';
+        const fname=(fileType==='bolts'?'tekla_bolts_':'bolts_')
+                    +new Date().toISOString().slice(0,19).replace(/:/g,'-');
+        const a=document.createElement('a');
+        a.href=URL.createObjectURL(new Blob([json],{type:'application/json'}));
+        a.download=fname+ext; a.click(); URL.revokeObjectURL(a.href);
+        showToast(`✅ Exported ${bolts.length} bolt(s) → ${fname}${ext}`);
+    }
+
+    function exportCSV() {
+        if (!bolts.length) { alert('No bolts to export!'); return; }
+        const headers=['diameter','din','length','name','grade','p1','p2','p3','p4','p5','p6','type','weight'];
+        const csv=[headers.join(','),...bolts.map(b=>headers.map(h=>b[h]??'').join(','))].join('\n');
+        const fname='bolts_'+new Date().toISOString().slice(0,19).replace(/:/g,'-')+'.csv';
+        const a=document.createElement('a');
+        a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+        a.download=fname; a.click(); URL.revokeObjectURL(a.href);
+        showToast(`✅ Exported ${bolts.length} bolt(s) → ${fname}`);
+    }
+
+    // ── INIT ──────────────────────────────────────────────────────────────────
+    toggleManualMode();
+    updateAutoName();
+    validateStandard();
+</script>
+</body>
+</html>
