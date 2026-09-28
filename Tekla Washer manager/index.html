@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Washer Manager - Tekla Structures Ready</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1400px; margin: 20px auto; padding: 0 20px; }
+        .input-area { background: #f0f0f0; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .input-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; align-items: flex-start; }
+        .input-group { display: flex; align-items: flex-start; gap: 5px; }
+        .input-group label { font-weight: bold; min-width: 140px; padding-top: 6px; }
+        .input-group input { width: 90px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+        .input-group-small label { min-width: 90px; }
+        .input-group-small input { width: 70px; }
+        button { background: #007bff; color: white; border: none; padding: 8px 16px; margin: 5px; cursor: pointer; border-radius: 4px; font-size: 14px; }
+        button:hover { opacity: 0.8; }
+        .delete-btn  { background: #dc3545; }
+        .edit-btn    { background: #ffc107; color: black; }
+        .export-btn  { background: #28a745; font-size: 15px; padding: 10px 20px; }
+        .tekla-export{ background: #6f42c1; }
+        .clear-btn   { background: #6c757d; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 7px 8px; text-align: left; font-size: 12px; }
+        th { background: #17a2b8; color: white; position: sticky; top: 0; z-index: 1; white-space: nowrap; }
+        td { white-space: nowrap; }
+        .status { margin: 10px 0; padding: 10px; background: #e9ecef; border-radius: 4px; display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
+        .formula-badge { background: #28a745; color: white; padding: 2px 7px; border-radius: 12px; font-size: 11px; margin-left: 4px; white-space: nowrap; }
+        .washer-count { font-size: 20px; font-weight: bold; color: #17a2b8; }
+        .table-container { max-height: 420px; overflow-y: auto; border: 2px solid #17a2b8; border-radius: 4px; }
+        .checkbox-group { display: flex; align-items: center; gap: 15px; margin-top: 10px; flex-wrap: wrap; }
+        .export-group { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+        .info-box  { background: #e7f3ff; border-left: 4px solid #17a2b8; padding: 10px; margin: 10px 0; font-size: 12px; }
+        .warn-box  { background: #fff8e1; border-left: 4px solid #ffc107; padding: 10px; margin: 10px 0; font-size: 12px; }
+        .sample-box{ background: #f8f9fa; border: 1px solid #dee2e6; padding: 10px; margin: 10px 0; font-family: monospace; font-size: 11px; overflow-x: auto; }
+        select { padding: 6px; border-radius: 4px; border: 1px solid #ccc; }
+        .grade-custom { display: flex; gap: 5px; align-items: center; }
+        .tooltip { cursor: help; border-bottom: 1px dotted #999; }
+        .legend { background: white; padding: 12px; border-radius: 5px; margin-bottom: 10px; border: 1px solid #ddd; }
+        .legend h4 { margin: 0 0 8px 0; font-size: 13px; color: #333; }
+        .legend table { margin-top: 8px; font-size: 11px; }
+        .legend th { background: #495057; font-size: 11px; padding: 4px 8px; }
+        .legend td { padding: 3px 8px; white-space: normal; }
+        .legend tr:nth-child(even) td { background: #f8f9fa; }
+        .legend tr.sg td { background: #e8f5e9; }
+        .legend tr.sm td { background: #fff3e0; }
+        .legend tr.sl td { background: #e3f2fd; }
+        h1 { color: #333; }
+
+        /* ── Validation ── */
+        .field-valid   { border: 2px solid #28a745 !important; background: #f6fff8 !important; }
+        .field-invalid { border: 2px solid #dc3545 !important; background: #fff5f5 !important; }
+        .field-warn    { border: 2px solid #ffc107 !important; background: #fffdf0 !important; }
+        .field-dup     { border: 2px solid #fd7e14 !important; background: #fff4ec !important; }
+        .hint { font-size: 10px; margin-top: 2px; display: block; min-height: 13px; }
+        .hint-ok    { color: #28a745; }
+        .hint-error { color: #dc3545; }
+        .hint-warn  { color: #e67e00; }
+        .hint-dup   { color: #c94a00; font-weight: bold; }
+        .input-wrap { display: flex; flex-direction: column; }
+        .valid-icon { font-size: 14px; padding-top: 4px; }
+
+        /* ── Duplicate banner ── */
+        .dup-banner {
+            display: none; background: #fff4ec;
+            border: 2px solid #fd7e14; border-radius: 6px;
+            padding: 10px 14px; margin: 8px 0; font-size: 13px; color: #7c3700;
+        }
+        .dup-banner strong { color: #c94a00; }
+        .dup-banner .dup-actions { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+        /* ── Toast notification ── */
+        #toast {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(80px);
+            background: #198754; color: white; padding: 12px 28px;
+            border-radius: 8px; font-size: 14px; font-weight: bold;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+            transition: transform 0.35s ease, opacity 0.35s ease;
+            opacity: 0; z-index: 9999; pointer-events: none; white-space: nowrap;
+        }
+        #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        #toast.toast-update { background: #0d6efd; }
+
+        /* ── Row highlights ── */
+        .editing-row   { background: #fff3cd !important; }
+        .duplicate-row { background: #fff0e6 !important; outline: 2px solid #fd7e14; }
+        .saved-flash   { animation: flashGreen 1.8s ease forwards; }
+        @keyframes flashGreen {
+            0%   { background: #d1e7dd; }
+            30%  { background: #a3cfbb; }
+            100% { background: transparent; }
+        }
+        .no-washers-row td { text-align: center; color: #888; font-style: italic; padding: 20px; }
+
+        /* ── Standard tags ── */
+        .std-tag  { display:inline-block; padding:1px 5px; border-radius:3px; font-size:10px; margin-left:4px; }
+        .std-din  { background:#cfe2ff; color:#084298; }
+        .std-iso  { background:#d1e7dd; color:#0a3622; }
+        .std-en   { background:#fff3cd; color:#664d03; }
+        .std-astm { background:#e2d9f3; color:#3d0a91; }
+        .std-other{ background:#e2e3e5; color:#383d41; }
+    </style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<h1>🔧 Washer Manager — Tekla Structures Ready</h1>
+<p>✅ DIN 125 / ISO 7089 / EN / ASTM | M1.6 → M64 | ✏️ Edit Mode | 📤 Tekla JSON Export</p>
+
+<div class="legend">
+    <h4>📖 DIN 125A / ISO 7089 Full Reference Table — Flat Washers (M1.6 to M64)</h4>
+    <table>
+        <thead>
+            <tr>
+                <th>Size</th><th>Inner Dia d1 (mm)</th>
+                <th>Outer Dia d2 (mm)</th><th>Thickness h (mm)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="sg"><td>M1.6</td><td>1.7</td><td>4.0</td><td>0.3</td></tr>
+            <tr class="sg"><td>M2</td><td>2.2</td><td>5.0</td><td>0.3</td></tr>
+            <tr class="sg"><td>M2.5</td><td>2.7</td><td>6.0</td><td>0.5</td></tr>
+            <tr class="sg"><td>M3</td><td>3.2</td><td>7.0</td><td>0.5</td></tr>
+            <tr class="sg"><td>M4</td><td>4.3</td><td>9.0</td><td>0.8</td></tr>
+            <tr class="sg"><td>M5</td><td>5.3</td><td>10.0</td><td>1.0</td></tr>
+            <tr class="sg"><td>M6</td><td>6.4</td><td>12.0</td><td>1.6</td></tr>
+            <tr class="sg"><td>M8</td><td>8.4</td><td>16.0</td><td>1.6</td></tr>
+            <tr class="sm"><td>M10</td><td>10.5</td><td>20.0</td><td>2.0</td></tr>
+            <tr class="sm"><td>M12</td><td>13.0</td><td>24.0</td><td>2.5</td></tr>
+            <tr class="sm"><td>M14</td><td>15.0</td><td>28.0</td><td>2.5</td></tr>
+            <tr class="sm"><td>M16</td><td>17.0</td><td>30.0</td><td>3.0</td></tr>
+            <tr class="sm"><td>M18</td><td>19.0</td><td>34.0</td><td>3.0</td></tr>
+            <tr class="sm"><td>M20</td><td>21.0</td><td>37.0</td><td>3.0</td></tr>
+            <tr class="sm"><td>M22</td><td>23.0</td><td>39.0</td><td>3.0</td></tr>
+            <tr class="sm"><td>M24</td><td>25.0</td><td>44.0</td><td>4.0</td></tr>
+            <tr class="sm"><td>M27</td><td>28.0</td><td>50.0</td><td>4.0</td></tr>
+            <tr class="sl"><td>M30</td><td>31.0</td><td>56.0</td><td>4.0</td></tr>
+            <tr class="sl"><td>M33</td><td>34.0</td><td>60.0</td><td>5.0</td></tr>
+            <tr class="sl"><td>M36</td><td>37.0</td><td>66.0</td><td>5.0</td></tr>
+            <tr class="sl"><td>M39</td><td>40.0</td><td>72.0</td><td>6.0</td></tr>
+            <tr class="sl"><td>M42</td><td>43.0</td><td>78.0</td><td>7.0</td></tr>
+            <tr class="sl"><td>M45</td><td>46.0</td><td>85.0</td><td>7.0</td></tr>
+            <tr class="sl"><td>M48</td><td>50.0</td><td>92.0</td><td>8.0</td></tr>
+            <tr class="sl"><td>M52</td><td>54.0</td><td>98.0</td><td>8.0</td></tr>
+            <tr class="sl"><td>M56</td><td>58.0</td><td>105.0</td><td>9.0</td></tr>
+            <tr class="sl"><td>M60</td><td>62.0</td><td>110.0</td><td>9.0</td></tr>
+            <tr class="sl"><td>M64</td><td>66.0</td><td>115.0</td><td>9.0</td></tr>
+        </tbody>
+    </table>
+    <p style="margin-top:6px;font-size:11px;">
+        🟢 Small (M1.6–M8) | 🟠 Medium (M10–M27) | 🔵 Large (M30–M64) |
+        <strong>Weight</strong> = π/4 × (d2² − d1²) × h × 7.85 g/cm³
+    </p>
+    <p style="font-size:11px;margin-top:4px;">
+        <strong>Accepted Standards:</strong>
+        <span class="std-tag std-din">DIN 125/126/127/134/137</span>
+        <span class="std-tag std-iso">ISO 7089/7090/7091/7093</span>
+        <span class="std-tag std-astm">ASTM F436/F844</span>
+        <span class="std-tag std-other">+ any custom</span>
+    </p>
+</div>
+
+<div class="info-box">
+    💡 <strong>Quick Guide:</strong> Enter Diameter → Parameters auto-fill from DIN 125A standard tables to match Tekla's Washer catalog mapping.<br>
+    📌 <strong>Tekla Schema Fix:</strong> Tekla requires <code>type: 201</code> for washers. This is now hardcoded automatically so you don't have to worry about it.<br>
+    🔁 <strong>Duplicate check</strong> — same Diameter + Standard warns before saving.
+</div>
+
+<div class="warn-box">
+    ⚠️ <strong>Grade Export:</strong> Washer grades / material designations are completely stripped out on the final Tekla <code>.bolts</code> JSON export to ensure clean catalog parsing.
+</div>
+
+<div class="dup-banner" id="dupBanner">
+    <strong>⚠️ Duplicate Detected!</strong>
+    <span id="dupMessage"></span>
+    <div class="dup-actions">
+        <button onclick="forceSaveDuplicate()" style="background:#fd7e14;">➕ Add Anyway</button>
+        <button onclick="jumpToExisting()"     style="background:#6c757d;">🔍 Jump to Existing</button>
+        <button onclick="dismissDupBanner()"   style="background:#aaa;color:#333;">✖ Dismiss</button>
+    </div>
+</div>
+
+<div class="input-area">
+    <h3 id="formTitle">➕ Add New Washer</h3>
+
+    <div class="input-row">
+        <div class="input-group">
+            <label class="tooltip" title="Nominal bolt diameter in mm — e.g. 6, 16, 20">📏 Diameter (mm):</label>
+            <div class="input-wrap">
+                <input type="number" id="diameter" step="0.5" min="1" max="300"
+                       oninput="validateDiameter(); checkDuplicate();"
+                       onchange="calculateStandardValues(); checkDuplicate();">
+                <span class="hint" id="hint-diameter"></span>
+            </div>
+            <span class="valid-icon" id="icon-diameter"></span>
+        </div>
+
+        <div class="input-group">
+            <label class="tooltip" title="Standard text (e.g. 125)">📄 Standard:</label>
+            <div class="input-wrap">
+                <input type="text" id="din" value="125" style="width:130px;text-transform:uppercase"
+                       oninput="validateStandard(); checkDuplicate();"
+                       onchange="calculateStandardValues(); checkDuplicate();"
+                       maxlength="20">
+                <span class="hint" id="hint-din"></span>
+            </div>
+            <span class="valid-icon" id="icon-din"></span>
+        </div>
+    </div>
+
+    <div class="input-row">
+        <div class="input-group">
+            <label class="tooltip" title="Washer thickness h — maps to p1 in Tekla">📏 p1 (Thickness h):</label>
+            <input type="number" id="p1" step="0.1" readonly style="background:#e8e8e8">
+            <span class="formula-badge">DIN Table</span>
+        </div>
+        <div class="input-group">
+            <label class="tooltip" title="Secondary thickness — always matches p1">📏 p2 (Thick 2):</label>
+            <input type="number" id="p2" step="0.1" readonly style="background:#e8e8e8">
+            <span class="formula-badge" id="p2Badge">Matches p1</span>
+        </div>
+        <div class="input-group">
+            <label class="tooltip" title="Inner clearance = bolt diameter + 2">📐 p3 (Clearance):</label>
+            <input type="number" id="p3" step="0.1" readonly style="background:#e8e8e8">
+            <span class="formula-badge" id="p3Badge">d + 2</span>
+        </div>
+    </div>
+
+    <div class="input-row">
+        <div class="input-group">
+            <label class="tooltip" title="Outer diameter d2 — maps to p4 in Tekla">🔘 p4 (Outer d2):</label>
+            <input type="number" id="p4" step="0.1" readonly style="background:#e8e8e8">
+            <span class="formula-badge" id="p4Badge">DIN Table</span>
+        </div>
+        <div class="input-group-small">
+            <label class="tooltip" title="Reserved — always 0 for flat washers">🔒 p5:</label>
+            <input type="number" id="p5" value="0" step="0.1" readonly style="background:#e8e8e8">
+            <span class="formula-badge" id="p5Badge">0</span>
+        </div>
+        <div class="input-group">
+            <label class="tooltip" title="Additional distance">➕ p6 (Add. Dist):</label>
+            <input type="number" id="p6" value="0" step="0.1">
+        </div>
+        <div class="input-group">
+            <label class="tooltip" title="Weight grams">⚖️ Weight (grams):</label>
+            <input type="number" id="weight" step="0.01" readonly style="background:#e8e8e8">
+            <span class="formula-badge">Auto</span>
+        </div>
+    </div>
+
+    <div class="input-row">
+        <div class="input-group">
+            <label class="tooltip" title="Material / grade designation for washers">🏭 Grade:</label>
+            <select id="grade" onchange="handleGradeChange()">
+                <option value="100HV" selected>100HV (Standard)</option>
+                <option value="200HV">200HV</option>
+                <option value="300HV">300HV</option>
+                <option value="A2">A2 Stainless</option>
+                <option value="A4">A4 Stainless</option>
+                <option value="F436">ASTM F436</option>
+                <option value="custom">✏️ Custom...</option>
+            </select>
+        </div>
+        <div class="grade-custom" id="customGradeDiv" style="display:none;">
+            <label>Custom:</label>
+            <input type="text" id="customGrade" placeholder="e.g. F844"
+                   style="width:100px;text-transform:uppercase"
+                   oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div class="input-group">
+            <label class="tooltip" title="Washer name for Tekla catalog">📝 Name:</label>
+            <input type="text" id="customName" placeholder="Auto-generated" style="width:200px">
+            <span class="formula-badge" id="nameStatus">Auto</span>
+        </div>
+    </div>
+
+    <div class="checkbox-group">
+        <label>
+            <input type="checkbox" id="autoName" checked onchange="toggleAutoName()">
+            Auto-generate Name &nbsp;<code style="font-size:11px;background:#ddd;padding:1px 4px;border-radius:3px;">WASHER{dia}-{STD}</code>
+        </label>
+        <label>
+            <input type="checkbox" id="manualMode" onchange="toggleManualMode()">
+            ✏️ Manual Override (unlock formula fields)
+        </label>
+    </div>
+
+    <div style="margin-top:15px;">
+        <button onclick="addWasher()"  id="addBtn">➕ Add Washer</button>
+        <button onclick="cancelEdit()" id="cancelBtn" class="clear-btn" style="display:none;">✖ Cancel Edit</button>
+        <button onclick="clearInputs()" class="clear-btn">🗑️ Clear Form</button>
+    </div>
+</div>
+
+<div class="status">
+    <span>📊 Total Washers:</span>
+    <span id="washerCount" class="washer-count">0</span>
+    <button onclick="clearAll()" class="clear-btn">🗑️ Clear All</button>
+</div>
+
+<div class="table-container" id="tableContainer">
+    <table id="washerTable">
+        <thead>
+            <tr>
+                <th>#</th><th>Diameter</th><th>Standard</th>
+                <th>Name</th><th>Grade</th>
+                <th>p1 (Thick h)</th><th>p2 (Thick 2)</th><th>p3 (Clear)</th>
+                <th>p4 (Outer d2)</th><th>p5</th><th>p6</th>
+                <th>Type</th><th>Weight (g)</th><th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="washerTableBody">
+            <tr class="no-washers-row">
+                <td colspan="14">No washers added yet — fill the form above and click ➕ Add Washer</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="export-group">
+    <button class="export-btn" onclick="exportJSON('json')">📤 Export JSON (.json)</button>
+    <button class="export-btn tekla-export" onclick="exportJSON('tekla')">🏗️ Export Tekla (.bolts)</button>
+</div>
+
+<div class="sample-box">
+    <strong>📋 Your Target Tekla Output Format (Auto-Generated):</strong><br>
+    {"Bolts": [ { "diameter":20, "din":"126", "length":0, "name":"WASHER20-126", "p1":3, "p2":3, "p3":22, "p4":37, "p5":0, "p6":0, "type":201, "weight":17.2 } ] }
+</div>
+
+<script>
+    let washers = [];
+    let editIndex        = null;
+    let pendingDupWasher = null;
+    let dupExistingIndex = null;
+
+    const VALID_DIAMETERS = [1.6,2,2.5,3,4,5,6,8,10,12,14,16,18,20,22,24,27,30,33,36,39,42,45,48,52,56,60,64];
+
+    // ── TOAST ────────────────────────────────────────────────────────────────────
+    let toastTimer;
+    function showToast(msg, isUpdate) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className   = 'show' + (isUpdate ? ' toast-update' : '');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => { t.className = ''; }, 3000);
+    }
+
+    // ── FLASH ROW (green) + SCROLL ────────────────────────────────────────────
+    function flashRow(index) {
+        setTimeout(() => {
+            const rows = document.querySelectorAll('#washerTableBody tr');
+            if (!rows[index]) return;
+            const row = rows[index];
+            row.classList.remove('saved-flash');
+            void row.offsetWidth;
+            row.classList.add('saved-flash');
+            const container = document.getElementById('tableContainer');
+            const rowTop    = row.offsetTop;
+            container.scrollTo({ top: rowTop - 40, behavior: 'smooth' });
+        }, 50);
+    }
+
+    // ── DUPLICATE CHECK ───────────────────────────────────────────────────────
+    function findDuplicate(diameter, std, skipIndex) {
+        return washers.findIndex((w, i) => {
+            if (i === skipIndex) return false;
+            return w.diameter === diameter &&
+                   w.din.toUpperCase() === std.toUpperCase();
+        });
+    }
+
+    function checkDuplicate() {
+        const d   = parseFloat(document.getElementById('diameter').value);
+        const std = document.getElementById('din').value.trim();
+        if (isNaN(d) || !std) { dismissDupBanner(); return; }
+
+        const idx = findDuplicate(d, std, editIndex);
+        if (idx !== -1) {
+            ['diameter','din'].forEach(id => {
+                const el = document.getElementById(id);
+                el.classList.remove('field-valid','field-invalid','field-warn');
+                el.classList.add('field-dup');
+            });
+            document.getElementById('hint-diameter').textContent = '⚠ Duplicate!';
+            document.getElementById('hint-diameter').className   = 'hint hint-dup';
+            document.getElementById('hint-din').textContent      = '⚠ Duplicate!';
+            document.getElementById('hint-din').className        = 'hint hint-dup';
+        } else {
+            dismissDupBanner();
+            validateDiameter(); validateStandard();
+        }
+    }
+
+    function showDupBanner(d, std, washer, existIdx) {
+        pendingDupWasher = washer;
+        dupExistingIndex = existIdx;
+        const ex = washers[existIdx];
+        document.getElementById('dupMessage').innerHTML =
+            ` A washer <strong>M${d} ${std}</strong> already exists at row
+              <strong>#${existIdx+1}</strong> (${ex.name}, Grade ${ex.grade}). What would you like to do?`;
+        document.getElementById('dupBanner').style.display = 'block';
+        document.getElementById('dupBanner').scrollIntoView({ behavior:'smooth', block:'center' });
+        document.querySelectorAll('#washerTableBody tr').forEach((r,i) =>
+            r.classList.toggle('duplicate-row', i === existIdx));
+    }
+
+    function forceSaveDuplicate() {
+        if (!pendingDupWasher) return;
+        let savedIndex;
+        if (editIndex !== null) {
+            savedIndex = editIndex;
+            washers[editIndex] = pendingDupWasher;
+            editIndex = null;
+        } else {
+            washers.push(pendingDupWasher);
+            savedIndex = washers.length - 1;
+        }
+        pendingDupWasher = null; dupExistingIndex = null;
+        renderTable();
+        clearInputs();
+        dismissDupBanner();
+        flashRow(savedIndex);
+        showToast(`✅ Saved (duplicate allowed) — ${washers[savedIndex].name}`, true);
+    }
+
+    function jumpToExisting() {
+        if (dupExistingIndex === null) return;
+        const rows = document.querySelectorAll('#washerTableBody tr');
+        if (rows[dupExistingIndex]) {
+            rows[dupExistingIndex].scrollIntoView({ behavior:'smooth', block:'center' });
+            rows[dupExistingIndex].style.outline = '3px solid #fd7e14';
+            setTimeout(() => rows[dupExistingIndex].style.outline = '', 2500);
+        }
+        dismissDupBanner();
+    }
+
+    function dismissDupBanner() {
+        document.getElementById('dupBanner').style.display = 'none';
+        pendingDupWasher = null; dupExistingIndex = null;
+        document.querySelectorAll('#washerTableBody tr').forEach(r => r.classList.remove('duplicate-row'));
+        ['diameter','din'].forEach(id => document.getElementById(id).classList.remove('field-dup'));
+    }
+
+    // ── VALIDATION ────────────────────────────────────────────────────────────
+    function setField(inputId, hintId, iconId, state, msg) {
+        const el   = document.getElementById(inputId);
+        const hint = document.getElementById(hintId);
+        const icon = iconId ? document.getElementById(iconId) : null;
+        el.classList.remove('field-valid','field-invalid','field-warn','field-dup');
+        if (state==='ok')    { el.classList.add('field-valid');   if(icon) icon.textContent='✅'; }
+        if (state==='error') { el.classList.add('field-invalid'); if(icon) icon.textContent='❌'; }
+        if (state==='warn')  { el.classList.add('field-warn');    if(icon) icon.textContent='⚠️'; }
+        if (state==='')      { if(icon) icon.textContent=''; }
+        if (hint) { hint.textContent=msg; hint.className='hint'+(state?' hint-'+state:''); }
+    }
+
+    function validateDiameter() {
+        const raw = document.getElementById('diameter').value;
+        if (!raw) { setField('diameter','hint-diameter','icon-diameter','',''); return false; }
+        const val = parseFloat(raw);
+        if (isNaN(val)||val<=0) { setField('diameter','hint-diameter','icon-diameter','error','Must be a positive number'); return false; }
+        if (val>300)            { setField('diameter','hint-diameter','icon-diameter','error','Max 300 mm'); return false; }
+        if (VALID_DIAMETERS.includes(val)) {
+            setField('diameter','hint-diameter','icon-diameter','ok',`Standard M${val}`);
+        } else {
+            setField('diameter','hint-diameter','icon-diameter','warn','Non-standard size');
+        }
+        return true;
+    }
+
+    function validateStandard() {
+        const el  = document.getElementById('din');
+        const pos = el.selectionStart;
+        el.value  = el.value.toUpperCase();
+        try { el.setSelectionRange(pos,pos); } catch(e){}
+        const val = el.value.trim();
+        if (!val) { setField('din','hint-din','icon-din','error','Standard required'); return false; }
+        setField('din','hint-din','icon-din','ok',`✓ Standard logged`);
+        return true;
+    }
+
+    function validateAll() {
+        const ok = validateDiameter() & validateStandard();
+        if (!ok) {
+            const err = document.querySelector('.field-invalid');
+            if (err) err.scrollIntoView({ behavior:'smooth', block:'center' });
+        }
+        return !!ok;
+    }
+
+    // ── DIN 125A LOOKUP TABLES ───────────────────────────────────────────────
+    function getInnerDiameter(d) {
+        const d1 = { 1.6:1.7,2:2.2,2.5:2.7,3:3.2,4:4.3,5:5.3,6:6.4,8:8.4,
+                     10:10.5,12:13.0,14:15.0,16:17.0,18:19.0,20:21.0,22:23.0,24:25.0,27:28.0,
+                     30:31.0,33:34.0,36:37.0,39:40.0,42:43.0,45:46.0,
+                     48:50.0,52:54.0,56:58.0,60:62.0,64:66.0 };
+        return d1[d] !== undefined ? d1[d] : parseFloat((d + 0.5).toFixed(1));
+    }
+
+    function getOuterDiameter(d) {
+        const d2 = { 1.6:4.0,2:5.0,2.5:6.0,3:7.0,4:9.0,5:10.0,6:12.0,8:16.0,
+                     10:20.0,12:24.0,14:28.0,16:30.0,18:34.0,20:37.0,22:39.0,24:44.0,27:50.0,
+                     30:56.0,33:60.0,36:66.0,39:72.0,42:78.0,45:85.0,
+                     48:92.0,52:98.0,56:105.0,60:110.0,64:115.0 };
+        return d2[d] !== undefined ? d2[d] : parseFloat((d * 2.5).toFixed(1));
+    }
+
+    function getThickness(d) {
+        const h = { 1.6:0.3,2:0.3,2.5:0.5,3:0.5,4:0.8,5:1.0,6:1.6,8:1.6,
+                    10:2.0,12:2.5,14:2.5,16:3.0,18:3.0,20:3.0,22:3.0,24:4.0,27:4.0,
+                    30:4.0,33:5.0,36:5.0,39:6.0,42:7.0,45:7.0,
+                    48:8.0,52:8.0,56:9.0,60:9.0,64:9.0 };
+        return h[d] !== undefined ? h[d] : parseFloat((d * 0.15).toFixed(1));
+    }
+
+    function getWasherWeight(d1, d2, h) {
+        // Annular disc: π/4 × (d2² − d1²) × h × ρ  [mm → g]
+        const d1c = d1 / 10;
+        const d2c = d2 / 10;
+        const hc  = h  / 10;
+        const volume = (Math.PI / 4) * (d2c * d2c - d1c * d1c) * hc;
+        return parseFloat((volume * 7.85).toFixed(2));
+    }
+
+    // ── AUTO NAME ─────────────────────────────────────────────────────────────
+    function updateAutoName() {
+        const d   = document.getElementById('diameter').value;
+        const std = document.getElementById('din').value;
+        const auto= document.getElementById('autoName').checked;
+        if (auto && d && std) {
+            document.getElementById('customName').value    = `WASHER${d}-${std}`;
+            document.getElementById('customName').readOnly = true;
+            document.getElementById('nameStatus').textContent = 'Auto';
+        } else {
+            document.getElementById('customName').readOnly = false;
+            document.getElementById('nameStatus').textContent = 'Manual';
+        }
+    }
+    function toggleAutoName() { updateAutoName(); }
+
+    function handleGradeChange() {
+        const isCustom = document.getElementById('grade').value === 'custom';
+        document.getElementById('customGradeDiv').style.display = isCustom ? 'flex' : 'none';
+        if (isCustom) document.getElementById('customGrade').focus();
+    }
+
+    function getSelectedGrade() {
+        const v = document.getElementById('grade').value;
+        return v === 'custom' ? (document.getElementById('customGrade').value.trim() || 'Custom') : v;
+    }
+
+    // ── CALCULATE VALUES FOR WASHERS ──────────────────────────────────────────
+    function calculateStandardValues() {
+        const d      = parseFloat(document.getElementById('diameter').value);
+        const manual = document.getElementById('manualMode').checked;
+
+        if (!manual && !isNaN(d) && d > 0) {
+            const d1 = getInnerDiameter(d);
+            const d2 = getOuterDiameter(d);
+            const h  = getThickness(d);
+
+            document.getElementById('p1').value = h;        // thickness h
+            document.getElementById('p2').value = h;        // matches p1
+            document.getElementById('p3').value = d + 2;    // inner clearance
+            document.getElementById('p4').value = d2;       // outer diameter
+            document.getElementById('p5').value = 0;        // reserved
+
+            document.getElementById('weight').value = getWasherWeight(d1, d2, h);
+        }
+        updateAutoName();
+    }
+
+    function toggleManualMode() {
+        const manual = document.getElementById('manualMode').checked;
+        ['p1','p2','p3','p4','p5','p6','weight'].forEach(id => {
+            const el = document.getElementById(id);
+            el.readOnly      = !manual;
+            el.style.background = manual ? '#fff' : '#e8e8e8';
+        });
+        if (!manual) calculateStandardValues();
+    }
+
+    // ── ADD / SAVE ────────────────────────────────────────────────────────────
+    function addWasher() {
+        if (!validateAll()) return;
+        dismissDupBanner();
+
+        const d     = parseFloat(document.getElementById('diameter').value);
+        const std   = document.getElementById('din').value.trim();
+        const grade = getSelectedGrade();
+        const manual= document.getElementById('manualMode').checked;
+
+        let p1, p2, p3, p4, p5, p6, weight;
+        if (manual) {
+            p1     = parseFloat(document.getElementById('p1').value) || 0;
+            p2     = parseFloat(document.getElementById('p2').value) || 0;
+            p3     = parseFloat(document.getElementById('p3').value) || 0;
+            p4     = parseFloat(document.getElementById('p4').value) || 0;
+            p5     = parseFloat(document.getElementById('p5').value) || 0;
+            p6     = parseFloat(document.getElementById('p6').value) || 0;
+            weight = parseFloat(document.getElementById('weight').value) || 0;
+        } else {
+            const d1 = getInnerDiameter(d);
+            const d2 = getOuterDiameter(d);
+            const h  = getThickness(d);
+            p1 = h;
+            p2 = h;
+            p3 = d + 2;
+            p4 = d2;
+            p5 = 0;
+            p6 = 0;
+            weight = getWasherWeight(d1, d2, h);
+        }
+
+        const name = document.getElementById('autoName').checked
+            ? `WASHER${d}-${std}`
+            : (document.getElementById('customName').value.trim() || `WASHER${d}-${std}`);
+
+        const washer = {
+            diameter: d, din: std, name: name,
+            p1: p1, p2: p2, p3: p3, p4: p4, p5: p5, p6: p6,
+            type: 201, weight: weight, grade: grade  // Hardcoded to 201
+        };
+
+        // Duplicate check
+        const dupIdx = findDuplicate(d, std, editIndex);
+        if (dupIdx !== -1) {
+            pendingDupWasher = washer;
+            showDupBanner(d, std, washer, dupIdx);
+            return;
+        }
+
+        let savedIndex;
+        if (editIndex !== null) {
+            savedIndex = editIndex;
+            washers[editIndex] = washer;
+            editIndex = null;
+            renderTable();
+            clearInputs();
+            flashRow(savedIndex);
+            showToast(`💾 Row #${savedIndex+1} updated — ${washer.name}`, true);
+        } else {
+            washers.push(washer);
+            savedIndex = washers.length - 1;
+            renderTable();
+            clearInputs();
+            flashRow(savedIndex);
+            showToast(`✅ Washer added — ${washer.name}`);
+        }
+    }
+
+    function cancelEdit() { editIndex = null; dismissDupBanner(); clearInputs(); }
+
+    // ── EDIT ──────────────────────────────────────────────────────────────────
+    function editWasher(i) {
+        const w = washers[i];
+        document.getElementById('diameter').value = w.diameter;
+        document.getElementById('din').value      = w.din;
+        document.getElementById('p1').value       = w.p1;
+        document.getElementById('p2').value       = w.p2;
+        document.getElementById('p3').value       = w.p3;
+        document.getElementById('p4').value       = w.p4;
+        document.getElementById('p5').value       = w.p5;
+        document.getElementById('p6').value       = w.p6;
+        document.getElementById('weight').value   = w.weight;
+
+        const expectedAutoName = `WASHER${w.diameter}-${w.din}`;
+        document.getElementById('autoName').checked = (w.name === expectedAutoName);
+        document.getElementById('customName').value = w.name;
+
+        updateAutoName();
+        validateDiameter(); validateStandard();
+
+        const stdGrades = ['100HV','200HV','300HV','A2','A4','F436'];
+        if (stdGrades.includes(w.grade)) {
+            document.getElementById('grade').value = w.grade;
+            document.getElementById('customGradeDiv').style.display = 'none';
+        } else {
+            document.getElementById('grade').value = 'custom';
+            document.getElementById('customGradeDiv').style.display = 'flex';
+            document.getElementById('customGrade').value = w.grade;
+        }
+
+        editIndex = i;
+        document.getElementById('formTitle').textContent   = `✏️ Editing Washer #${i+1} — ${w.name}`;
+        document.getElementById('addBtn').textContent      = '💾 Save Changes';
+        document.getElementById('addBtn').style.background = '#0d6efd';
+        document.getElementById('addBtn').style.color      = 'white';
+        document.getElementById('cancelBtn').style.display = 'inline-block';
+
+        document.querySelectorAll('#washerTableBody tr').forEach((r,idx) =>
+            r.classList.toggle('editing-row', idx === i));
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        showToast(`✏️ Editing Row #${i+1} — ${w.name}. Make changes and click 💾 Save Changes.`, true);
+    }
+
+    // ── DELETE ────────────────────────────────────────────────────────────────
+    function deleteWasher(i) {
+        if (confirm(`Delete washer: ${washers[i].name}?`)) {
+            washers.splice(i, 1);
+            if (editIndex === i) { editIndex = null; clearInputs(); }
+            renderTable();
+            showToast(`🗑️ Washer deleted`);
+        }
+    }
+
+    function clearAll() {
+        if (confirm('⚠️ Delete ALL washers? Cannot be undone!')) {
+            washers = []; editIndex = null;
+            renderTable(); clearInputs(); dismissDupBanner();
+            showToast('🗑️ All washers cleared');
+        }
+    }
+
+    // ── RENDER TABLE ──────────────────────────────────────────────────────────
+    function renderTable() {
+        const tbody = document.getElementById('washerTableBody');
+        tbody.innerHTML = '';
+        if (!washers.length) {
+            const row = tbody.insertRow();
+            row.className = 'no-washers-row';
+            row.insertCell(0).colSpan = 14;
+            row.cells[0].textContent = 'No washers added yet — fill the form above and click ➕ Add Washer';
+            document.getElementById('washerCount').textContent = '0';
+            return;
+        }
+        washers.forEach((w, i) => {
+            const row = tbody.insertRow();
+            [i+1, w.diameter, w.din, w.name, w.grade || '100HV',
+             w.p1, w.p2, w.p3, w.p4, w.p5, w.p6, w.type, w.weight
+            ].forEach((v, col) => { row.insertCell(col).textContent = v; });
+            row.insertCell(13).innerHTML =
+                `<button class="edit-btn"   onclick="editWasher(${i})">✏️ Edit</button>
+                 <button class="delete-btn" onclick="deleteWasher(${i})">🗑️ Del</button>`;
+        });
+        document.getElementById('washerCount').textContent = washers.length;
+    }
+
+    // ── CLEAR FORM ────────────────────────────────────────────────────────────
+    function clearInputs() {
+        document.getElementById('diameter').value      = '';
+        document.getElementById('din').value           = '125';
+        document.getElementById('p6').value            = '0';
+        document.getElementById('grade').value         = '100HV';
+        document.getElementById('customGradeDiv').style.display = 'none';
+        document.getElementById('customGrade').value   = '';
+        document.getElementById('autoName').checked    = true;
+        document.getElementById('customName').value    = '';
+        document.getElementById('customName').readOnly = true;
+        document.getElementById('formTitle').textContent = '➕ Add New Washer';
+        document.getElementById('addBtn').textContent    = '➕ Add Washer';
+        document.getElementById('addBtn').style.background = '#007bff';
+        document.getElementById('addBtn').style.color      = 'white';
+        document.getElementById('cancelBtn').style.display = 'none';
+        editIndex = null;
+        updateAutoName();
+        ['diameter','din'].forEach(id =>
+            document.getElementById(id).classList.remove('field-valid','field-invalid','field-warn','field-dup'));
+        ['hint-diameter','hint-din'].forEach(id =>
+            document.getElementById(id).textContent = '');
+        ['icon-diameter','icon-din'].forEach(id =>
+            document.getElementById(id).textContent = '');
+        if (!document.getElementById('manualMode').checked)
+            ['p1','p2','p3','p4','p5','weight'].forEach(id => document.getElementById(id).value = '');
+        document.querySelectorAll('#washerTableBody tr').forEach(r =>
+            r.classList.remove('editing-row','duplicate-row'));
+    }
+
+    // ── EXPORT ────────────────────────────────────────────────────────────────
+    function exportJSON(fileType) {
+        if (!washers.length) { alert('No washers to export!'); return; }
+
+        // Tekla's internal parser requires the root array key "Bolts" for all
+        // bolt-catalog component types (bolts, nuts, washers).
+        const exportData = washers.map(w => ({
+            diameter: w.diameter,
+            din:      w.din,
+            length:   0,          // Washers have 0 length in catalog
+            name:     w.name,
+            p1:       w.p1,
+            p2:       w.p2,
+            p3:       w.p3,
+            p4:       w.p4,
+            p5:       w.p5,
+            p6:       w.p6,
+            type:     w.type,     // Always 201
+            weight:   w.weight
+        }));
+
+        const json  = JSON.stringify({ Bolts: exportData }, null, 2);
+        const ext   = fileType === 'tekla' ? '.bolts' : '.json';
+        const fname = (fileType === 'tekla' ? 'tekla_washers_' : 'washers_')
+                    + new Date().toISOString().slice(0,19).replace(/:/g,'-');
+
+        const a = document.createElement('a');
+        a.href     = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+        a.download = fname + ext;
+        a.click();
+        URL.revokeObjectURL(a.href);
+
+        showToast(`✅ Exported ${washers.length} washer(s) → ${fname}${ext}`);
+    }
+
+    // ── INIT ──────────────────────────────────────────────────────────────────
+    toggleManualMode();
+    updateAutoName();
+    validateStandard();
+</script>
+</body>
+</html>
