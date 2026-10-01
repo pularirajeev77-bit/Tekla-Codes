@@ -9,6 +9,7 @@ Other branches: [`main`](https://github.com/pularirajeev77-bit/Tekla-Codes/tree/
 | Macro | File | What it does |
 |---|---|---|
 | [XLS to XLSX Converter](#xls-to-xlsx-converter) | `XlsToXlsxConverter.cs` | Batch-converts Excel 97-2003 `.xls` files (e.g. Tekla reports) to `.xlsx` |
+| [Object Transporter](#object-transporter) | `ObjectTransporter.cs` | Copies beams/columns and contour plates between models via a base point |
 
 ### How to install a macro
 
@@ -51,6 +52,50 @@ Excel via PowerShell).
 - Unique temp file names, so two Tekla sessions running the macro can't collide.
 - Missing files and "Excel not installed" are reported clearly in the log.
 - An existing `.xlsx` with the same name is overwritten.
+
+---
+
+## Object Transporter
+
+**File:** `ObjectTransporter.cs`
+
+Copy parts from one Tekla model and paste them into another (or the same) model,
+**relative to a base point** - like Ctrl+C / Ctrl+V between models.
+
+1. In the **source** model run the macro > **Copy** > pick the parts (middle-click
+   to finish) > pick a **base point**.
+2. Open the **target** model, run the macro > **Paste** > pick the **target point**.
+   The parts are recreated, moved from base point to target point.
+
+The "clipboard" is a text file, `%TEMP%\Tekla_Macro_Clipboard.csv`, so it works
+across models on the same PC. The dialog shows when it was last copied, and
+**Paste** is greyed out until something has been copied.
+
+**What is copied**
+
+| Part type | Copied |
+|---|---|
+| Beams / columns | Start & end point, profile, material, class, name, finish, position (depth / plane / rotation **and their offsets**) |
+| Contour plates | Contour points **with chamfers**, profile, material, class, name, finish, depth and depth offset |
+
+Polybeams, bent plates and other part types are skipped (the message says how
+many). Cuts, fittings, welds, bolts and UDAs are **not** copied.
+
+**Good to know**
+- **Crash fix:** paste checked for 12 fields on a beam row but read the 13th, and
+  5 fields on a plate row but read the 6th, so a short row crashed the whole paste.
+  Bad rows are now counted and skipped; the rest still paste.
+- **Work-plane fix:** copy and paste now run in **global** coordinates and restore
+  your work plane afterwards. Before, a different work plane in the target model
+  put the parts in the wrong place.
+- Cancelling the base-point pick now cancels the copy (before it silently used
+  `0,0,0`).
+- Chamfers, name, finish and position offsets are new; clipboards copied by the
+  old version still paste.
+- `;` and `|` inside names/profiles are replaced with spaces so they can't break
+  the file format.
+- Paste reports parts that Tekla refused to create (e.g. an unknown profile in the
+  target model's catalog).
 
 ---
 
