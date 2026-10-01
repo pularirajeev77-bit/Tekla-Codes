@@ -12,3 +12,12 @@ Choose a manager to open its page:
 Open a manager's `index.html` file in a web browser, enter the part dimensions,
 and export the data in Tekla's `.bolts` format. Import the exported catalog data
 into Tekla Structures. Create the bolt assembly in Tekla separately.
+
+## Macros
+
+Tekla Structures macros (C# Akit scripts) live on the
+[`Macro`](https://github.com/pularirajeev77-bit/Tekla-Codes/tree/Macro) branch:
+
+| Macro | What it does |
+|---|---|
+| XLS to XLSX Converter | Batch-converts Excel 97-2003 `.xls` files (e.g. Tekla reports) to `.xlsx` |
