@@ -11,6 +11,7 @@ Other branches: [`main`](https://github.com/pularirajeev77-bit/Tekla-Codes/tree/
 | [XLS to XLSX Converter](#xls-to-xlsx-converter) | `XlsToXlsxConverter.cs` | Batch-converts Excel 97-2003 `.xls` files (e.g. Tekla reports) to `.xlsx` |
 | [Object Transporter](#object-transporter) | `ObjectTransporter.cs` | Copies beams/columns and contour plates between models via a base point |
 | [Dynamic Pin Creator](#dynamic-pin-creator) | `DynamicPinCreator.cs` | Creates a round pin with welded end caps between two picked points |
+| [Interactive Polybeam Cut](#interactive-polybeam-cut) | `InteractivePolybeamCut.cs` | Cuts a part with a body that follows other parts' path, with live preview |
 
 ### How to install a macro
 
@@ -126,6 +127,54 @@ Both caps are **shop-welded** to the pin, so the whole pin is one `PIN-` assembl
   larger than the pin asks for confirmation.
 - Cancelling the point pick creates nothing.
 - Uses the profile catalog's round bar `D...` - make sure your environment has it.
+
+---
+
+## Interactive Polybeam Cut
+
+**File:** `InteractivePolybeamCut.cs`
+
+Cuts a **main part** with a box-shaped body that follows the centre-line of one
+or more **secondary parts** (beams / polybeams) where they meet the main part -
+e.g. a clean cut-out where a member runs into or through another one. The cut
+body is shown first as a **yellow preview** (class 6) you can reposition.
+
+1. Set **On plane** / **On depth** and their offsets (default RIGHT / BEHIND, 0).
+2. **Select Part to Cut (Main)** - pick the part that gets the cut.
+3. **Select Parts for Cut (Sec)** - pick the path parts, middle-click.
+4. **Preview Profile** - creates the yellow body; change the position values and
+   press **Modify Preview** to move it.
+5. **Execute Final Cut** - turns the body into a cut on the main part and removes it.
+
+Closing the dialog without executing deletes the preview.
+
+**Settings** (constants at the top of the file)
+
+| Constant | Default | Meaning |
+|---|---|---|
+| `PROFILE_CLEARANCE` | 150 | Added to the secondary profile's height and width |
+| `CUT_LENGTH` | 200 | Path length either side of the point nearest the main part |
+| `CUTTING_MATERIAL` | `Zero_Density` | Material of the cut body - must exist in your catalog |
+
+**Good to know**
+- **Dialog fix:** the dialog was hidden with `Hide()` while picking. Hiding a modal
+  dialog ends it, so the first pick closed the tool (and deleted the preview).
+  It is now made invisible during picking instead.
+- **Path-end fix:** when the secondary part *ends* at the main part, the cut was
+  meant to extend past that end into the main part, but the point was placed back
+  along the first segment, so the body folded back on itself. It now extends
+  beyond the end.
+- **Decimal fix:** the cut profile is written as `PL250*250.5`, never
+  `PL250*250,5` on comma-decimal PCs; offsets accept `.` or `,`.
+- The preview copied the secondary part's *Position object itself*, so changing the
+  dialog values also changed that part's position data in memory. It now copies
+  only the values it needs.
+- A failed preview insert (e.g. missing `Zero_Density` material) is now reported
+  instead of leaving a phantom preview; a failed cut turns the body back into a
+  visible preview so you can adjust and retry.
+- Secondary parts that don't connect end-to-end give a notice; duplicate points
+  are removed; the main part can't be picked as a path part.
+- Profile size is read from `PROFILE.HEIGHT/WIDTH`, falling back to `HEIGHT/WIDTH`.
 
 ---
 
