@@ -10,6 +10,7 @@ Other branches: [`main`](https://github.com/pularirajeev77-bit/Tekla-Codes/tree/
 |---|---|---|
 | [XLS to XLSX Converter](#xls-to-xlsx-converter) | `XlsToXlsxConverter.cs` | Batch-converts Excel 97-2003 `.xls` files (e.g. Tekla reports) to `.xlsx` |
 | [Object Transporter](#object-transporter) | `ObjectTransporter.cs` | Copies beams/columns and contour plates between models via a base point |
+| [Dynamic Pin Creator](#dynamic-pin-creator) | `DynamicPinCreator.cs` | Creates a round pin with welded end caps between two picked points |
 
 ### How to install a macro
 
@@ -96,6 +97,35 @@ many). Cuts, fittings, welds, bolts and UDAs are **not** copied.
   the file format.
 - Paste reports parts that Tekla refused to create (e.g. an unknown profile in the
   target model's catalog).
+
+---
+
+## Dynamic Pin Creator
+
+**File:** `DynamicPinCreator.cs`  &middot;  NickName `UIPin`
+
+Enter the pin diameter, cap diameter, cap thickness and material, click
+**Pick Points & Create Pin**, then pick the pin's start and end point. It creates:
+
+| Part | Profile | Class | Name | Prefixes |
+|---|---|---|---|---|
+| Pin (between the picked points) | `D<pin dia>` | 5 | `Ø<dia>_PIN` | part `r-`, assembly `PIN-` |
+| 2 caps (outside each end, cap thickness long) | `D<cap dia>` | 6 | `Ø<dia>_CAP` | part `r-` |
+
+Both caps are **shop-welded** to the pin, so the whole pin is one `PIN-` assembly.
+
+**Good to know**
+- **Decimal fix:** sizes are written with a dot whatever the Windows number
+  format, so `12.5` gives `D12.5` (before, a comma-decimal PC produced `D12,5`,
+  which Tekla doesn't recognise). Both `12.5` and `12,5` are accepted in the form.
+- **No half pins:** each insert is checked; if anything fails, everything already
+  created is deleted again and the reason is shown. Before, a failed cap still got
+  welded and a broken pin was left in the model.
+- Picking the same point twice is caught (it used to give a zero-length direction).
+- Zero/negative sizes and an empty material are rejected; a cap that is not
+  larger than the pin asks for confirmation.
+- Cancelling the point pick creates nothing.
+- Uses the profile catalog's round bar `D...` - make sure your environment has it.
 
 ---
 
