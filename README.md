@@ -21,3 +21,4 @@ Tekla Structures macros (C# Akit scripts) live on the
 | Macro | What it does |
 |---|---|
 | XLS to XLSX Converter | Batch-converts Excel 97-2003 `.xls` files (e.g. Tekla reports) to `.xlsx` |
+| Object Transporter | Copies beams/columns and contour plates between models via a base point |
