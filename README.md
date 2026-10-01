@@ -23,3 +23,4 @@ Tekla Structures macros (C# Akit scripts) live on the
 | XLS to XLSX Converter | Batch-converts Excel 97-2003 `.xls` files (e.g. Tekla reports) to `.xlsx` |
 | Object Transporter | Copies beams/columns and contour plates between models via a base point |
 | Dynamic Pin Creator | Creates a round pin with welded end caps between two picked points |
+| Interactive Polybeam Cut | Cuts a part with a body that follows other parts' path, with live preview |
