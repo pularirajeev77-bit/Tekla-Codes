@@ -1,152 +1,165 @@
 # Tekla-Codes - `Macro` branch
 
-Tekla Structures **macros** (C# Akit scripts) and the standalone HTML catalog tools.
+C# **macros for Tekla Structures** by Rajeev Pulari. Each macro is a single `.cs`
+file: copy it into your macro folder and run it from Tekla - no compiling needed.
 
-Other branches: [`main`](https://github.com/pularirajeev77-bit/Tekla-Codes/tree/main) (HTML tools overview)
+Other branch: [`main`](https://github.com/pularirajeev77-bit/Tekla-Codes/tree/main) - overview and the HTML catalog tools
+(also included here, see [HTML catalog tools](#html-catalog-tools)).
 
-## Macros
+## Contents
 
-| Macro | File | What it does |
-|---|---|---|
-| [XLS to XLSX Converter](#xls-to-xlsx-converter) | `XlsToXlsxConverter.cs` | Batch-converts Excel 97-2003 `.xls` files (e.g. Tekla reports) to `.xlsx` |
-| [Object Transporter](#object-transporter) | `ObjectTransporter.cs` | Copies beams/columns and contour plates between models via a base point |
-| [Dynamic Pin Creator](#dynamic-pin-creator) | `DynamicPinCreator.cs` | Creates a round pin with welded end caps between two picked points |
-| [Interactive Polybeam Cut](#interactive-polybeam-cut) | `InteractivePolybeamCut.cs` | Cuts a part with a body that follows other parts' path, with live preview |
+| Macro | File | What it does | Needs |
+|---|---|---|---|
+| [XLS to XLSX Converter](#xls-to-xlsx-converter) | `XlsToXlsxConverter.cs` | Batch-converts Excel 97-2003 `.xls` files (e.g. Tekla reports) to `.xlsx` | Microsoft Excel |
+| [Object Transporter](#object-transporter) | `ObjectTransporter.cs` | Copies beams/columns and contour plates from one model and pastes them into another via a base point | Tekla with the newer macro format (see below) |
+| [Dynamic Pin Creator](#dynamic-pin-creator) | `DynamicPinCreator.cs` | Creates a round pin with shop-welded end caps between two picked points | Round bar profile `D...` |
+| [Interactive Polybeam Cut](#interactive-polybeam-cut) | `InteractivePolybeamCut.cs` | Cuts a part with a body that follows other parts' path, with a live preview | `Zero_Density` material |
 
-### How to install a macro
+Also: [Installing a macro](#installing-a-macro) &middot; [Changelog](#changelog) &middot; [HTML catalog tools](#html-catalog-tools)
 
-1. Copy the `.cs` file into a Tekla macro folder, e.g.
-   `C:\ProgramData\Trimble\Tekla Structures\<version>\Environments\common\macros\modeling\`
-   (the folder set by `XS_MACRO_DIRECTORY`).
-2. In Tekla: **Applications & components > Macros** (or the Applications side pane),
-   refresh, and run the macro by its file name.
+---
+
+## Installing a macro
+
+1. Download the `.cs` file.
+2. Copy it into a Tekla macro folder:
+   - Modelling macros: `...\Environments\common\macros\modeling\`
+   - The exact folder is set by the advanced option **`XS_MACRO_DIRECTORY`**
+     (e.g. `C:\ProgramData\Trimble\Tekla Structures\<version>\Environments\common\macros`).
+3. In Tekla open **Applications & components** (side pane), find **Macros**,
+   refresh if needed, and double-click the macro to run it.
+
+**Macro formats.** Three macros use the classic `Tekla.Technology.Akit.UserScript`
+format, which works in all recent versions. **Object Transporter** uses the newer
+`[MacroEntryPoint]` format (`#pragma reference` lines at the top), which needs a
+Tekla version that supports it (recent releases). If Tekla reports a compile
+error for it, your version is too old for that format.
+
+**General tips**
+- Run macros on a **saved** model; use **Undo** (Ctrl+Z) if a result isn't right.
+- Messages and pick prompts appear in Tekla's status bar / dialogs - read them while picking.
+- Press **Esc** while picking to cancel; nothing is created when you cancel.
 
 ---
 
 ## XLS to XLSX Converter
 
-**File:** `XlsToXlsxConverter.cs`
+**File:** `XlsToXlsxConverter.cs` &middot; **Needs:** Microsoft Excel installed (it converts through Excel via PowerShell)
 
-A small window to pick one or more **.xls** files (it opens in the current model
-folder) and convert them to **.xlsx** next to the originals, with a log of every
-file.
+Converts one or more **.xls** files (Excel 97-2003, e.g. Tekla report or
+Organizer exports) to **.xlsx**, saved next to the originals.
 
-**Requirements:** Microsoft Excel installed on the PC (the conversion runs through
-Excel via PowerShell).
+**How to use**
+1. Run the macro - a window opens.
+2. **Browse...** - pick `.xls` files (multi-select). The dialog opens in the current model folder.
+3. Optional: untick **Delete original .xls after a successful conversion** to keep the originals.
+4. **Convert to XLSX** - the log shows `OK` / `FAIL` for every file.
 
 | Control | What it does |
 |---|---|
-| Browse... | Add `.xls` files (multi-select) |
+| Browse... | Add `.xls` files to the list |
 | Remove Selected / Clear All | Edit the list |
-| Delete original .xls ... | On (default) = remove each `.xls` **after** its `.xlsx` is confirmed |
-| Convert to XLSX | Run the batch; the log shows OK / FAIL per file |
+| Delete original .xls ... | On (default) = delete each `.xls` only **after** its `.xlsx` is confirmed |
+| Convert to XLSX | Run the batch |
 
-**Good to know**
-- **Safer delete:** the original `.xls` is only deleted once the `.xlsx` exists and
-  is not empty. Before, it was deleted as soon as Excel's SaveAs returned. You can
-  now also untick the option to keep the originals.
-- Originals are opened **read-only**, so a failed conversion can't touch them.
-- **Failed files stay in the list** for a retry; converted ones are removed (before,
-  the whole list was cleared even when files failed).
-- **Timeout handled:** after 5 minutes PowerShell is stopped and the log says so;
-  before, the macro carried on and deleted its temp files while the conversion
-  was still running. The window keeps repainting while it waits.
-- Unique temp file names, so two Tekla sessions running the macro can't collide.
-- Missing files and "Excel not installed" are reported clearly in the log.
-- An existing `.xlsx` with the same name is overwritten.
+**Notes**
+- Originals are opened **read-only**; a failed file is never touched.
+- Files that fail stay in the list so you can retry; converted files are removed from it.
+- An existing `.xlsx` with the same name is **overwritten**.
+- The batch stops after **5 minutes**; the log says so. If that happens, check Task
+  Manager for a leftover `EXCEL.EXE`.
+- "Excel not installed" and missing files are reported in the log.
 
 ---
 
 ## Object Transporter
 
-**File:** `ObjectTransporter.cs`
+**File:** `ObjectTransporter.cs` &middot; **Format:** newer `[MacroEntryPoint]` macro
 
 Copy parts from one Tekla model and paste them into another (or the same) model,
 **relative to a base point** - like Ctrl+C / Ctrl+V between models.
 
-1. In the **source** model run the macro > **Copy** > pick the parts (middle-click
+**How to use**
+1. In the **source** model: run the macro > **Copy** > pick the parts (middle-click
    to finish) > pick a **base point**.
-2. Open the **target** model, run the macro > **Paste** > pick the **target point**.
+2. Open the **target** model: run the macro > **Paste** > pick the **target point**.
    The parts are recreated, moved from base point to target point.
 
 The "clipboard" is a text file, `%TEMP%\Tekla_Macro_Clipboard.csv`, so it works
-across models on the same PC. The dialog shows when it was last copied, and
-**Paste** is greyed out until something has been copied.
+between models on the **same PC**. The dialog shows when it was last copied, and
+**Paste** stays greyed out until something has been copied. Each Copy replaces the
+previous clipboard.
 
 **What is copied**
 
 | Part type | Copied |
 |---|---|
-| Beams / columns | Start & end point, profile, material, class, name, finish, position (depth / plane / rotation **and their offsets**) |
-| Contour plates | Contour points **with chamfers**, profile, material, class, name, finish, depth and depth offset |
+| Beams / columns | Start & end point, profile, material, class, name, finish, position (depth / plane / rotation and their offsets) |
+| Contour plates | Contour points with chamfers, profile, material, class, name, finish, depth and depth offset |
 
-Polybeams, bent plates and other part types are skipped (the message says how
-many). Cuts, fittings, welds, bolts and UDAs are **not** copied.
+**Not copied:** polybeams, bent plates and other part types (the message says how
+many were skipped), and cuts, fittings, welds, bolts, reinforcement and UDAs.
 
-**Good to know**
-- **Crash fix:** paste checked for 12 fields on a beam row but read the 13th, and
-  5 fields on a plate row but read the 6th, so a short row crashed the whole paste.
-  Bad rows are now counted and skipped; the rest still paste.
-- **Work-plane fix:** copy and paste now run in **global** coordinates and restore
-  your work plane afterwards. Before, a different work plane in the target model
-  put the parts in the wrong place.
-- Cancelling the base-point pick now cancels the copy (before it silently used
-  `0,0,0`).
-- Chamfers, name, finish and position offsets are new; clipboards copied by the
-  old version still paste.
-- `;` and `|` inside names/profiles are replaced with spaces so they can't break
-  the file format.
-- Paste reports parts that Tekla refused to create (e.g. an unknown profile in the
-  target model's catalog).
+**Notes**
+- Copy and paste work in **global coordinates**, so the result is the same whatever
+  work plane is active; your work plane is restored afterwards.
+- Profiles and materials must exist in the **target** model's catalogs - parts Tekla
+  refuses to create are counted in the result message.
 
 ---
 
 ## Dynamic Pin Creator
 
-**File:** `DynamicPinCreator.cs`  &middot;  NickName `UIPin`
+**File:** `DynamicPinCreator.cs` &middot; NickName `UIPin` &middot; **Needs:** round bar profile `D...` in the profile catalog
 
-Enter the pin diameter, cap diameter, cap thickness and material, click
-**Pick Points & Create Pin**, then pick the pin's start and end point. It creates:
+Creates a **pin with an end cap at each end**, between two picked points.
+
+**How to use**
+1. Run the macro and fill in the window:
+
+   | Field | Default | Meaning |
+   |---|---|---|
+   | Pin Diameter (mm) | 30 | Pin profile `D30` |
+   | Cap Diameter (mm) | 60 | Cap profile `D60` |
+   | Cap Thickness (mm) | 12 | Length of each cap |
+   | Material | S235JR | Material of pin and caps |
+
+2. Click **Pick Points & Create Pin**, then pick the pin's **start** and **end** point.
+
+**What it creates**
 
 | Part | Profile | Class | Name | Prefixes |
 |---|---|---|---|---|
-| Pin (between the picked points) | `D<pin dia>` | 5 | `Ø<dia>_PIN` | part `r-`, assembly `PIN-` |
-| 2 caps (outside each end, cap thickness long) | `D<cap dia>` | 6 | `Ø<dia>_CAP` | part `r-` |
+| Pin, between the picked points | `D<pin dia>` | 5 | `Ø<dia>_PIN` | part `r-`, assembly `PIN-` |
+| 2 caps, outside each end | `D<cap dia>` | 6 | `Ø<dia>_CAP` | part `r-` |
 
-Both caps are **shop-welded** to the pin, so the whole pin is one `PIN-` assembly.
+Both caps are **shop-welded** to the pin, so each pin is one `PIN-` assembly.
 
-**Good to know**
-- **Decimal fix:** sizes are written with a dot whatever the Windows number
-  format, so `12.5` gives `D12.5` (before, a comma-decimal PC produced `D12,5`,
-  which Tekla doesn't recognise). Both `12.5` and `12,5` are accepted in the form.
-- **No half pins:** each insert is checked; if anything fails, everything already
-  created is deleted again and the reason is shown. Before, a failed cap still got
-  welded and a broken pin was left in the model.
-- Picking the same point twice is caught (it used to give a zero-length direction).
-- Zero/negative sizes and an empty material are rejected; a cap that is not
-  larger than the pin asks for confirmation.
-- Cancelling the point pick creates nothing.
-- Uses the profile catalog's round bar `D...` - make sure your environment has it.
+**Notes**
+- Decimals can be typed as `12.5` or `12,5`.
+- If any part can't be created (e.g. unknown material), nothing is left behind and the reason is shown.
+- A cap not larger than the pin asks for confirmation.
 
 ---
 
 ## Interactive Polybeam Cut
 
-**File:** `InteractivePolybeamCut.cs`
+**File:** `InteractivePolybeamCut.cs` &middot; **Needs:** material `Zero_Density` (or change the setting)
 
 Cuts a **main part** with a box-shaped body that follows the centre-line of one
 or more **secondary parts** (beams / polybeams) where they meet the main part -
-e.g. a clean cut-out where a member runs into or through another one. The cut
-body is shown first as a **yellow preview** (class 6) you can reposition.
+e.g. a clean cut-out where a member runs into or through another one. The body is
+first shown as a **yellow preview** (class 6) that you can reposition.
 
-1. Set **On plane** / **On depth** and their offsets (default RIGHT / BEHIND, 0).
-2. **Select Part to Cut (Main)** - pick the part that gets the cut.
-3. **Select Parts for Cut (Sec)** - pick the path parts, middle-click.
-4. **Preview Profile** - creates the yellow body; change the position values and
+**How to use**
+1. Set **On plane** / **On depth** and their offsets (defaults RIGHT / BEHIND, 0).
+2. **1. Select Part to Cut (Main)** - pick the part that gets the cut.
+3. **2. Select Parts for Cut (Sec)** - pick the path parts, then middle-click.
+4. **3. Preview Profile** - creates the yellow body. Change the position values and
    press **Modify Preview** to move it.
-5. **Execute Final Cut** - turns the body into a cut on the main part and removes it.
+5. **4. Execute Final Cut** - turns the body into a cut on the main part and removes it.
 
-Closing the dialog without executing deletes the preview.
+Closing the window without executing removes the preview.
 
 **Settings** (constants at the top of the file)
 
@@ -154,39 +167,57 @@ Closing the dialog without executing deletes the preview.
 |---|---|---|
 | `PROFILE_CLEARANCE` | 150 | Added to the secondary profile's height and width |
 | `CUT_LENGTH` | 200 | Path length either side of the point nearest the main part |
-| `CUTTING_MATERIAL` | `Zero_Density` | Material of the cut body - must exist in your catalog |
+| `CUTTING_MATERIAL` | `Zero_Density` | Material of the cut body - must exist in your material catalog |
 
-**Good to know**
-- **Dialog fix:** the dialog was hidden with `Hide()` while picking. Hiding a modal
-  dialog ends it, so the first pick closed the tool (and deleted the preview).
-  It is now made invisible during picking instead.
-- **Path-end fix:** when the secondary part *ends* at the main part, the cut was
-  meant to extend past that end into the main part, but the point was placed back
-  along the first segment, so the body folded back on itself. It now extends
-  beyond the end.
-- **Decimal fix:** the cut profile is written as `PL250*250.5`, never
-  `PL250*250,5` on comma-decimal PCs; offsets accept `.` or `,`.
-- The preview copied the secondary part's *Position object itself*, so changing the
-  dialog values also changed that part's position data in memory. It now copies
-  only the values it needs.
-- A failed preview insert (e.g. missing `Zero_Density` material) is now reported
-  instead of leaving a phantom preview; a failed cut turns the body back into a
-  visible preview so you can adjust and retry.
-- Secondary parts that don't connect end-to-end give a notice; duplicate points
-  are removed; the main part can't be picked as a path part.
-- Profile size is read from `PROFILE.HEIGHT/WIDTH`, falling back to `HEIGHT/WIDTH`.
+**Notes**
+- The secondary parts should connect end-to-end (within 2 mm); otherwise you get a
+  notice and should check the preview.
+- If the main part is at the **end** of the path, the body extends past that end into the main part.
+- If the cut fails, the body turns back into the yellow preview so you can adjust and retry.
+
+---
+
+## Changelog
+
+**v2.1 - October 2026** (debugged versions of the original macros)
+
+*XLS to XLSX Converter*
+- The original `.xls` is deleted only after the `.xlsx` is verified (before: as soon as Excel's SaveAs returned); new option to keep originals.
+- Originals opened read-only; failed files stay in the list; unique temp files per run.
+- 5-minute timeout now stops PowerShell instead of carrying on mid-conversion; window repaints while waiting.
+
+*Object Transporter*
+- Fixed a crash on paste: the field-count checks were one short for beams (12 vs 13) and plates (5 vs 6).
+- Works in global coordinates (a different work plane used to misplace parts).
+- Cancelling the base-point pick cancels the copy (used to fall back to 0,0,0).
+- Now also copies chamfers, name, finish and position offsets; old clipboards still paste.
+- One bad row no longer stops the whole paste.
+
+*Dynamic Pin Creator*
+- Sizes always written with a dot (`D12.5`); comma-decimal Windows produced `D12,5`, which Tekla rejects.
+- Every insert is checked; a failure removes the parts already created (no half pins).
+- Same point picked twice, zero sizes and empty material are caught.
+
+*Interactive Polybeam Cut*
+- Dialog no longer closes on the first pick (it was hidden with `Hide()`, which ends a modal dialog).
+- Path end fix: the body extends past the end of the path instead of folding back on itself.
+- Profile written with a dot (`PL250*250.5`); offsets accept `.` or `,`.
+- Preview no longer shares (and alters) the secondary part's position data.
+- Failed preview / cut are reported; duplicate path points removed; main part can't be a path part.
 
 ---
 
 ## HTML catalog tools
 
-Standalone HTML tools for preparing bolt catalog data for Tekla Structures:
+Standalone browser tools (also on [`main`](https://github.com/pularirajeev77-bit/Tekla-Codes/tree/main)):
 
-- [Bolt Manager](Tekla%20Bolt%20Manager/)
-- [Nut Manager](Tekla%20Nut%20Manager/)
-- [Stud Manager](Tekla%20Stud%20manager/)
-- [Washer Manager](Tekla%20Washer%20manager/)
+| Tool | Folder |
+|---|---|
+| [Bolt Manager](Tekla%20Bolt%20Manager/) | `Tekla Bolt Manager/` |
+| [Nut Manager](Tekla%20Nut%20Manager/) | `Tekla Nut Manager/` |
+| [Stud Manager](Tekla%20Stud%20manager/) | `Tekla Stud manager/` |
+| [Washer Manager](Tekla%20Washer%20manager/) | `Tekla Washer manager/` |
 
-Open a manager's `index.html` file in a web browser, enter the part dimensions,
-and export the data in Tekla's `.bolts` format. Import the exported catalog data
-into Tekla Structures. Create the bolt assembly in Tekla separately.
+Open a tool's `index.html` in a web browser, enter the part dimensions and export
+the data in Tekla's `.bolts` format. Import the file into Tekla Structures' bolt
+catalog; create the bolt assembly in Tekla separately.
