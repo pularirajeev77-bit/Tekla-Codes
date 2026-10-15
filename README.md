@@ -14,6 +14,7 @@ Other branch: [`main`](https://github.com/pularirajeev77-bit/Tekla-Codes/tree/ma
 | [Object Transporter](#object-transporter) | `ObjectTransporter.cs` | Copies beams/columns and contour plates from one model and pastes them into another via a base point | Tekla with the newer macro format (see below) |
 | [Dynamic Pin Creator](#dynamic-pin-creator) | `DynamicPinCreator.cs` | Creates a round pin with shop-welded end caps between two picked points | Round bar profile `D...` |
 | [Interactive Polybeam Cut](#interactive-polybeam-cut) | `InteractivePolybeamCut.cs` | Cuts a part with a body that follows other parts' path, with a live preview | `Zero_Density` material |
+| [Snap Secondary Ends](#snap-secondary-ends) | `SnapSecondaryEnds.cs` | Moves the ends of secondary beams exactly onto a main beam, within a tolerance | - |
 
 Also: [Installing a macro](#installing-a-macro) &middot; [Changelog](#changelog) &middot; [HTML catalog tools](#html-catalog-tools)
 
@@ -177,6 +178,35 @@ Closing the window without executing removes the preview.
 
 ---
 
+## Snap Secondary Ends
+
+**File:** `SnapSecondaryEnds.cs` &middot; **Needs:** nothing extra
+
+Moves the **ends of secondary beams exactly onto a main beam** - for members that were modelled a
+few millimetres short or long of the main part, so they meet it cleanly before connections are added.
+
+**How to use**
+1. **1. Select MAIN** - pick the beam the secondaries should land on.
+2. **2. Select SECONDARY (multi)** - pick the beams to fix, then middle-click (or Esc).
+   Pick again to add more; **Clear secondary list** starts over.
+3. Set **Tolerance (mm)** (default 3) and, if needed, tick **Also snap onto the main line**.
+4. **Finish (Apply)** - moves the ends and reports how many profiles and ends changed.
+
+**What moves where**
+- An end within the tolerance of the main beam's **start or end point** snaps onto that point.
+- With **Also snap onto the main line** ticked, an end within the tolerance of the main beam's
+  **reference line** (anywhere along it) snaps onto the nearest point of that line.
+- Ends further away than the tolerance, or already exactly on, are left alone.
+
+**Notes**
+- The snap target is the main beam's **reference line** (its start/end handles). If the main has
+  position offsets, that line is not its physical centre line.
+- A secondary whose two ends would land on the same point is skipped (it would have zero length).
+- Parts are re-read just before they are changed, so edits made in Tekla after picking are kept.
+- Only straight beams (and columns) can be main or secondary - not polybeams or plates.
+
+---
+
 ## Changelog
 
 **v2.1 - October 2026** (debugged versions of the original macros)
@@ -204,6 +234,13 @@ Closing the window without executing removes the preview.
 - Profile written with a dot (`PL250*250.5`); offsets accept `.` or `,`.
 - Preview no longer shares (and alters) the secondary part's position data.
 - Failed preview / cut are reported; duplicate path points removed; main part can't be a path part.
+
+*Snap Secondary Ends* (added October 2026, v2.1)
+- Dialog no longer closes on the first pick (same `Hide()` issue as above).
+- Parts are re-read before modifying, so later edits in Tekla are not overwritten.
+- Zero-length results skipped; tolerance accepts `.` or `,`; commit only when something changed;
+  failed modifies reported.
+- New option: snap onto the main beam's line, not only its end points.
 
 ---
 
