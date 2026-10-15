@@ -3,7 +3,7 @@
 Tools for **Tekla Structures** by Rajeev Pulari:
 
 - **HTML catalog tools** - prepare bolt, nut, stud and washer catalog data in the browser and export it in Tekla's `.bolts` format.
-- **Macros** - C# macros that run inside Tekla (file conversion, copy between models, pin creation, path cuts).
+- **Macros** - C# macros that run inside Tekla (file conversion, copy between models, pin creation, path cuts, snapping beam ends).
 
 ## Branches
 
@@ -44,6 +44,7 @@ where each one is documented in detail.
 | [Object Transporter](https://github.com/pularirajeev77-bit/Tekla-Codes/tree/Macro#object-transporter) | `ObjectTransporter.cs` | Copies beams/columns and contour plates from one model and pastes them into another via a base point | - |
 | [Dynamic Pin Creator](https://github.com/pularirajeev77-bit/Tekla-Codes/tree/Macro#dynamic-pin-creator) | `DynamicPinCreator.cs` | Creates a round pin with shop-welded end caps between two picked points | Round bar profile `D...` |
 | [Interactive Polybeam Cut](https://github.com/pularirajeev77-bit/Tekla-Codes/tree/Macro#interactive-polybeam-cut) | `InteractivePolybeamCut.cs` | Cuts a part with a body that follows other parts' path, with a live preview | `Zero_Density` material |
+| [Snap Secondary Ends](https://github.com/pularirajeev77-bit/Tekla-Codes/tree/Macro#snap-secondary-ends) | `SnapSecondaryEnds.cs` | Moves the ends of secondary beams exactly onto a main beam, within a tolerance | - |
 
 ### Installing a macro (short version)
 
